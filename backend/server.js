@@ -12,7 +12,9 @@ app.use(express.json());
 
 // Internship routes
 const internshipRoutes = require("./routes/internshipRoutes");
+const aptitudeRoutes = require("./routes/aptitudeRoutes");
 app.use("/api/internships", internshipRoutes);
+app.use("/api/aptitude", aptitudeRoutes);
 
 // Home route
 app.get("/", (req, res) => {

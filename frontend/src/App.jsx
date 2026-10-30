@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import AptitudeProgress from "./AptitudeProgress";
 import "./App.css";
 
 const API_URL = "http://localhost:5000/api/internships";
@@ -563,6 +564,7 @@ function App() {
             recruiters would update statuses through the backend.
           </p>
         </section>
+        <AptitudeProgress />
       </main>
 
       <footer className="footer">
