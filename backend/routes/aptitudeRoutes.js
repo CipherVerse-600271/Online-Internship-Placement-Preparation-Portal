@@ -4,7 +4,7 @@ const { listTests, getTest, publicQuestions, gradeAttempt } = require("../servic
 const router = express.Router();
 
 function requireStudent(req, res, next) {
-  const studentId = req.user?.id || req.get("x-student-id");
+  const studentId = req.user?.id || (process.env.NODE_ENV !== "production" ? req.get("x-student-id") : null);
   if (!studentId) return res.status(401).json({ message: "Authentication is required." });
   req.studentId = String(studentId);
   next();
