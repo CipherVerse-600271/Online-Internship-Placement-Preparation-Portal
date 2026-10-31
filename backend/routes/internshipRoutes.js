@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const Internship = require("../models/Internship");
+const { protect, authorize } = require("../src/middleware/authMiddleware");
 
 // GET: Retrieve all internships
 router.get("/", async (req, res) => {
@@ -39,7 +40,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST: Add a new internship
-router.post("/", async (req, res) => {
+router.post("/", protect, authorize("recruiter", "admin"), async (req, res) => {
   try {
     const internship = await Internship.create(req.body);
 
