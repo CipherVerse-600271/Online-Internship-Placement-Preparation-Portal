@@ -14,13 +14,18 @@ router.post(
   "/register/student",
   [
     body("fullName").trim().notEmpty(),
-    body("email").isEmail().normalizeEmail(),
+    body("email")
+      .isEmail()
+      .normalizeEmail()
+      .matches(/^[a-zA-Z0-9._%+-]+@stu\.pes\.edu$/)
+      .withMessage("Please use your official PESU student email address"),
     body("srn").trim().notEmpty(),
     body("password").isLength({ min: 8 })
   ],
   async (req, res) => {
     try {
       const errors = validationResult(req);
+
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
       }
@@ -57,7 +62,18 @@ router.post(
 
       console.log("Student created. Sending verification email...");
 
-      await sendVerificationEmail(user.email, verificationToken);
+      try {
+        await sendVerificationEmail(user.email, verificationToken);
+      } catch (emailError) {
+        console.error("Verification email failed:", emailError.message);
+
+        await User.deleteOne({ _id: user._id });
+
+        return res.status(503).json({
+          message:
+            "Registration could not be completed because the verification email could not be sent. Please try again later."
+        });
+      }
 
       return res.status(201).json({
         message: "Student registered successfully. Verification email sent.",
@@ -71,10 +87,10 @@ router.post(
         }
       });
     } catch (error) {
-      console.error("Student registration/email error:", error);
+      console.error("Student registration error:", error);
 
       return res.status(500).json({
-        message: "Registration completed or attempted, but email sending failed. Check backend logs."
+        message: "Unable to complete student registration"
       });
     }
   }
@@ -91,6 +107,7 @@ router.post(
   async (req, res) => {
     try {
       const errors = validationResult(req);
+
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
       }
@@ -268,7 +285,8 @@ router.get("/verify-email/:token", async (req, res) => {
     });
   }
 });
-// RBAC test route - Student only
+
+// RBAC TEST ROUTE - STUDENT ONLY
 router.get(
   "/student-dashboard",
   protect,
@@ -284,7 +302,8 @@ router.get(
     });
   }
 );
-// Recruiter-only protected route
+
+// RECRUITER-ONLY PROTECTED ROUTE
 router.get(
   "/recruiter-dashboard",
   protect,
@@ -300,4 +319,5 @@ router.get(
     });
   }
 );
+
 module.exports = router;
