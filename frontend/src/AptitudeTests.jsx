@@ -8,7 +8,7 @@ function readToken() {
 }
 
 function AptitudeTests() {
-  const [token, setToken] = useState(readToken);
+  const [token] = useState(readToken);
   const [topics, setTopics] = useState([]);
   const [topic, setTopic] = useState("");
   const [session, setSession] = useState(null);
@@ -18,6 +18,7 @@ function AptitudeTests() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [finished, setFinished] = useState(false);
+  const [result, setResult] = useState(null);
 
   const request = async (path, options = {}) => {
     const response = await fetch(`${API_BASE}/aptitude${path}`, {
@@ -65,6 +66,7 @@ function AptitudeTests() {
     setLoading(true);
     setError("");
     setNotice("");
+    setResult(null);
     try {
       const data = await request("/start", {
         method: "POST",
@@ -94,13 +96,14 @@ function AptitudeTests() {
   }
 
   async function submitTest(automatic = false) {
-    if (!session || finished) return;
+    if (!session || finished || loading) return;
     setLoading(true);
     setError("");
     try {
-      const result = await request(`/sessions/${session.sessionId}/submit`, { method: "POST" });
+      const submission = await request(`/sessions/${session.sessionId}/submit`, { method: "POST" });
+      setResult(submission.result || null);
       setFinished(true);
-      setNotice(automatic || result.status === "expired"
+      setNotice(automatic || submission.status === "expired"
         ? "Time is up. Your test has ended automatically."
         : "Your test has been submitted successfully.");
     } catch (err) {
@@ -116,6 +119,7 @@ function AptitudeTests() {
     setFinished(false);
     setNotice("");
     setError("");
+    setResult(null);
     setRemaining(0);
   }
 
@@ -166,19 +170,25 @@ function AptitudeTests() {
         <>
           <div className="aptitude-test-toolbar">
             <div>
-              <span className="aptitude-eyebrow">CURRENT TEST</span>
+              <span className="aptitude-eyebrow">{finished ? "TEST RESULT" : "CURRENT TEST"}</span>
               <h3>{session.topicName}</h3>
             </div>
-            <div className={remaining <= 60 ? "aptitude-timer urgent" : "aptitude-timer"} aria-live="polite">
-              <span>Time remaining</span>
-              <strong>{formattedTime}</strong>
-            </div>
+            {!finished && (
+              <div className={remaining <= 60 ? "aptitude-timer urgent" : "aptitude-timer"} aria-live="polite">
+                <span>Time remaining</span>
+                <strong>{formattedTime}</strong>
+              </div>
+            )}
           </div>
 
-          <div className="aptitude-progress-track">
-            <span style={{ width: `${(Object.keys(answers).length / session.questions.length) * 100}%` }} />
-          </div>
-          <p className="aptitude-answer-count">{Object.keys(answers).length} of {session.questions.length} answered</p>
+          {!finished && (
+            <>
+              <div className="aptitude-progress-track">
+                <span style={{ width: `${(Object.keys(answers).length / session.questions.length) * 100}%` }} />
+              </div>
+              <p className="aptitude-answer-count">{Object.keys(answers).length} of {session.questions.length} answered</p>
+            </>
+          )}
 
           <div className="aptitude-question-list">
             {session.questions.map((question, index) => (
@@ -201,6 +211,15 @@ function AptitudeTests() {
             ))}
           </div>
 
+          {finished && result && (
+            <div className="aptitude-result" role="status">
+              <h3>Your Result</h3>
+              <p><strong>{result.score} / {result.totalQuestions}</strong> correct answers</p>
+              <p><strong>{result.percentage}%</strong> score</p>
+              <p>{result.correct} correct · {result.incorrect} incorrect · {result.unanswered} unanswered</p>
+            </div>
+          )}
+
           <div className="aptitude-submit-row">
             {finished ? (
               <button type="button" onClick={resetTest}>Back to topics</button>
@@ -210,7 +229,7 @@ function AptitudeTests() {
               </button>
             )}
           </div>
-          <p className="aptitude-note">Your selected answers are saved as you go. This issue covers test-taking and submission; scoring and result history are handled in the next assigned issues.</p>
+          <p className="aptitude-note">Answers are saved as you go. Results are calculated and stored when the test is submitted.</p>
         </>
       )}
     </section>
