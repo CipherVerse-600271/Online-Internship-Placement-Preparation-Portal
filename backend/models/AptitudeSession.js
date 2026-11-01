@@ -30,6 +30,16 @@ const aptitudeSessionSchema = new mongoose.Schema(
       type: String,
       enum: ["in_progress", "submitted", "expired"],
       default: "in_progress"
+    },
+    result: {
+      totalQuestions: { type: Number, default: 0 },
+      answered: { type: Number, default: 0 },
+      correct: { type: Number, default: 0 },
+      incorrect: { type: Number, default: 0 },
+      unanswered: { type: Number, default: 0 },
+      score: { type: Number, default: 0 },
+      percentage: { type: Number, default: 0 },
+      topic: { type: String, default: "" }
     }
   },
   { timestamps: true }
