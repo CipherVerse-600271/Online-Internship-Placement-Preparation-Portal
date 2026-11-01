@@ -1,3 +1,4 @@
+
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
@@ -10,7 +11,16 @@ const transporter = nodemailer.createTransport({
 
 // Send student email verification link
 const sendVerificationEmail = async (email, token) => {
-  const verificationLink = `http://localhost:5000/api/auth/verify-email/${token}`;
+  const verificationLink =
+    `http://localhost:5000/api/auth/verify-email/${token}`;
+
+  // Development-only verification link for local testing
+  if (process.env.NODE_ENV === "development") {
+    console.log("\n========== EMAIL VERIFICATION ==========");
+    console.log("Recipient:", email);
+    console.log("Verification link:", verificationLink);
+    console.log("========================================\n");
+  }
 
   const mailOptions = {
     from: `"Internship Placement Portal" <${process.env.EMAIL_USER}>`,
@@ -25,17 +35,19 @@ const sendVerificationEmail = async (email, token) => {
       <p>If you did not create this account, please ignore this email.</p>
     `
   };
+
   console.log("Attempting to send verification email to:", email);
+
   const info = await transporter.sendMail(mailOptions);
 
-console.log("Email sending response:", {
-  messageId: info.messageId,
-  accepted: info.accepted,
-  rejected: info.rejected,
-  response: info.response
-});
+  console.log("Email sending response:", {
+    messageId: info.messageId,
+    accepted: info.accepted,
+    rejected: info.rejected,
+    response: info.response
+  });
 
-return info;
+  return info;
 };
 
 module.exports = { sendVerificationEmail };
