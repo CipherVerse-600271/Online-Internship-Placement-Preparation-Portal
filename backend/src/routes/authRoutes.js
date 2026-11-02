@@ -155,7 +155,6 @@ router.post(
         email: email.toLowerCase()
       });
 
-      // DEBUG 1: Check whether MongoDB finds the account
       console.log("LOGIN DEBUG - Email:", email);
       console.log("LOGIN DEBUG - User found:", !!user);
 
@@ -178,7 +177,6 @@ router.post(
 
       const isPasswordValid = await user.comparePassword(password);
 
-      // DEBUG 2: Check password and account status
       console.log("LOGIN DEBUG - Password matches:", isPasswordValid);
       console.log("LOGIN DEBUG - Email verified:", user.isEmailVerified);
       console.log("LOGIN DEBUG - Role:", user.role);
@@ -320,6 +318,58 @@ router.get(
         role: req.user.role
       }
     });
+  }
+);
+
+// ==========================================
+// SAVE STUDENT SKILLS
+// ==========================================
+router.patch(
+  "/skills",
+  protect,
+  authorize("student"),
+  async (req, res) => {
+    try {
+      const skills = Array.isArray(req.body.skills)
+        ? req.body.skills
+        : String(req.body.skills || "").split(",");
+
+      const cleanedSkills = [
+        ...new Set(
+          skills
+            .map((skill) => String(skill).trim())
+            .filter(Boolean)
+        )
+      ];
+
+      if (cleanedSkills.length > 30) {
+        return res.status(400).json({
+          message: "You can save a maximum of 30 skills."
+        });
+      }
+
+      const user = await User.findByIdAndUpdate(
+        req.user._id,
+        { skills: cleanedSkills },
+        { new: true, runValidators: true }
+      ).select("fullName email skills");
+
+      if (!user) {
+        return res.status(404).json({
+          message: "Student not found."
+        });
+      }
+
+      return res.status(200).json({
+        message: "Your skills have been saved.",
+        user
+      });
+    } catch (error) {
+      console.error("Save skills error:", error);
+      return res.status(500).json({
+        message: "Unable to save skills."
+      });
+    }
   }
 );
 

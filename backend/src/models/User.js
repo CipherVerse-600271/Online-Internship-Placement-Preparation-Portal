@@ -39,6 +39,12 @@ const userSchema = new mongoose.Schema(
       default: "student"
     },
 
+    // Skills saved by students for internship matching
+    skills: {
+      type: [String],
+      default: []
+    },
+
     isEmailVerified: {
       type: Boolean,
       default: false

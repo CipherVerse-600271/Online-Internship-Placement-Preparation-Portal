@@ -4,23 +4,30 @@ const mongoose = require("mongoose");
 const router = express.Router();
 
 const Internship = require("../models/Internship");
+const User = require("../src/models/User");
+const Notification = require("../models/Notification");
 const { protect, authorize } = require("../src/middleware/authMiddleware");
 
 // Escape special characters before using user input in a regular expression.
 const escapeRegex = (value) =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// Clean and remove duplicate skills.
 const cleanSkills = (skills) => {
   const values = Array.isArray(skills)
     ? skills
     : String(skills || "").split(",");
 
-  return [...new Set(
-    values.map((skill) => String(skill).trim()).filter(Boolean)
-  )];
+  return [
+    ...new Set(
+      values.map((skill) => String(skill).trim()).filter(Boolean)
+    )
+  ];
 };
 
-// #22: Search and filter internships.
+// ==========================================
+// #22: SEARCH AND FILTER INTERNSHIPS
+// ==========================================
 router.get("/", async (req, res) => {
   try {
     const {
@@ -111,13 +118,17 @@ router.get("/", async (req, res) => {
 
     res.json(internships);
   } catch (error) {
+    console.error("Fetch internships error:", error);
+
     res.status(500).json({
       message: "Failed to fetch internships.",
     });
   }
 });
 
-// #23: View details of a specific internship.
+// ==========================================
+// #23: VIEW INTERNSHIP DETAILS
+// ==========================================
 router.get("/:id", async (req, res) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({
@@ -136,13 +147,17 @@ router.get("/:id", async (req, res) => {
 
     res.json(internship);
   } catch (error) {
+    console.error("Internship details error:", error);
+
     res.status(500).json({
       message: "Unable to retrieve internship details.",
     });
   }
 });
 
-// #21: Recruiter or admin can post an internship.
+// ==========================================
+// #21: RECRUITER OR ADMIN CAN POST INTERNSHIP
+// ==========================================
 router.post(
   "/",
   protect,
@@ -227,6 +242,9 @@ router.post(
         }
       }
 
+      const internshipSkills = cleanSkills(skills);
+
+      // Create the internship.
       const internship = await Internship.create({
         title: title.trim(),
         company: company.trim(),
@@ -234,18 +252,69 @@ router.post(
         stipend: stipendValue,
         duration: duration.trim(),
         description: description.trim(),
-        skills: cleanSkills(skills),
+        skills: internshipSkills,
         applyLink: validatedApplyLink,
         deadline: deadlineValue,
         recruiter: req.user._id,
       });
 
-      res.status(201).json({
+      // ==========================================
+      // INTERNSHIP MATCHING NOTIFICATIONS
+      // ==========================================
+      // Notify students whose saved skills match
+      // the skills required for this internship.
+
+      try {
+        if (internshipSkills.length > 0) {
+          const students = await User.find({
+            role: "student",
+            skills: { $exists: true, $ne: [] },
+          }).select("_id skills");
+
+          const requiredSkills = new Set(
+            internshipSkills.map((skill) => skill.toLowerCase())
+          );
+
+          const matchingStudents = students.filter((student) =>
+            student.skills.some((studentSkill) =>
+              requiredSkills.has(String(studentSkill).trim().toLowerCase())
+            )
+          );
+
+          if (matchingStudents.length > 0) {
+            const notifications = matchingStudents.map((student) => ({
+              student: student._id,
+              internship: internship._id,
+              application: null,
+              category: "internship_match",
+              message: `A new internship, ${internship.title} at ${internship.company}, matches your saved skills.`,
+              read: false,
+            }));
+
+            await Notification.insertMany(notifications);
+          }
+
+          console.log(
+            `Internship matching: ${matchingStudents.length} student(s) notified.`
+          );
+        }
+      } catch (notificationError) {
+        // Do not undo a successfully created internship
+        // if notification creation fails.
+        console.error(
+          "Internship matching notification error:",
+          notificationError
+        );
+      }
+
+      return res.status(201).json({
         message: "Internship created successfully.",
         internship,
       });
     } catch (error) {
-      res.status(400).json({
+      console.error("Create internship error:", error);
+
+      return res.status(400).json({
         message: "Failed to create internship.",
         error: error.message,
       });
