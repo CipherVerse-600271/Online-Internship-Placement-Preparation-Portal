@@ -20,6 +20,11 @@ function App() {
   const [resumeName, setResumeName] = useState("");
   const [coverLetter, setCoverLetter] = useState("");
   const [search, setSearch] = useState("");
+  const [skillFilter, setSkillFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
+  const [minStipend, setMinStipend] = useState("");
+  const [maxStipend, setMaxStipend] = useState("");
+  const [durationFilter, setDurationFilter] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -39,11 +44,18 @@ function App() {
 
   const loadInternships = useCallback(async () => {
     try {
-      const data = await request("/internships");
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("search", search.trim());
+      if (skillFilter.trim()) params.set("skill", skillFilter.trim());
+      if (locationFilter.trim()) params.set("location", locationFilter.trim());
+      if (minStipend !== "") params.set("minStipend", minStipend);
+      if (maxStipend !== "") params.set("maxStipend", maxStipend);
+      if (durationFilter.trim()) params.set("duration", durationFilter.trim());
+      const data = await request("/internships" + (params.toString() ? "?" + params.toString() : ""));
       setInternships(data);
       setSelected(current => current || data[0] || null);
     } catch (error) { setNotice(error.message); }
-  }, [request]);
+  }, [request, search, skillFilter, locationFilter, minStipend, maxStipend, durationFilter]);
 
   const loadDashboard = useCallback(async () => {
     if (!token || !user) return;
@@ -116,9 +128,7 @@ function App() {
     } catch (error) { setNotice(error.message); }
   }
 
-  const filtered = internships.filter(job =>
-    [job.title, job.company, job.location, ...(job.skills || [])].join(" ").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = internships;
 
   return <div className="app">
     <header className="hero"><div className="hero-content">
@@ -143,7 +153,7 @@ function App() {
       </section>}
 
       <section className="section-heading"><div><h2>Explore Internships</h2><p>Search available roles and select one to view details.</p></div><span className="result-count">{filtered.length} opportunities</span></section>
-      <section className="filters"><input type="search" placeholder="Search role, company, location or skill..." value={search} onChange={e => setSearch(e.target.value)}/></section>
+      <section className="filters"><input type="search" placeholder="Search role or company..." value={search} onChange={e => setSearch(e.target.value)}/><input placeholder="Skill" value={skillFilter} onChange={e => setSkillFilter(e.target.value)}/><input placeholder="Location" value={locationFilter} onChange={e => setLocationFilter(e.target.value)}/><input type="number" min="0" placeholder="Minimum stipend" value={minStipend} onChange={e => setMinStipend(e.target.value)}/><input type="number" min="0" placeholder="Maximum stipend" value={maxStipend} onChange={e => setMaxStipend(e.target.value)}/><input placeholder="Duration" value={durationFilter} onChange={e => setDurationFilter(e.target.value)}/><button type="button" className="details-button" onClick={() => {setSearch("");setSkillFilter("");setLocationFilter("");setMinStipend("");setMaxStipend("");setDurationFilter("");}}>Clear filters</button></section>
       <section className="internship-list">
         {filtered.map(job => <article className={selected?._id === job._id ? "internship-card selected-card" : "internship-card"} key={job._id}>
           <div className="card-top"><div className="company-icon">{job.company?.[0] || "I"}</div><span className="location-tag">{job.location}</span></div>
@@ -157,7 +167,7 @@ function App() {
 
       {selected && <section className="details-panel"><p className="eyebrow">INTERNSHIP DETAILS</p><h2>{selected.title}</h2><p className="company-name">{selected.company}</p>
         <p><b>Location:</b> {selected.location} · <b>Stipend:</b> ₹{selected.stipend}/month · <b>Duration:</b> {selected.duration}</p>
-        <p>{selected.description}</p><p><b>Skills:</b> {(selected.skills || []).join(", ") || "Not specified"}</p>
+        <p>{selected.description}</p><p><b>Eligibility:</b> {selected.eligibility || "Not specified"}</p><p><b>Skills:</b> {(selected.skills || []).join(", ") || "Not specified"}</p><p><b>Deadline:</b> {selected.deadline ? new Date(selected.deadline).toLocaleDateString() : "Not specified"}</p><p><b>Application status:</b> {selected.deadline && new Date(selected.deadline) < new Date() ? "Closed" : "Open"}</p>
         {user?.role === "student" && <><hr/><h3>Submit your application</h3><form onSubmit={apply}>
           <label>Resume link (Google Drive / portfolio URL)</label><input type="url" required placeholder="https://..." value={resumeUrl} onChange={e => setResumeUrl(e.target.value)}/>
           <label>Resume file name</label><input required placeholder="MyResume.pdf" value={resumeName} onChange={e => setResumeName(e.target.value)}/>
