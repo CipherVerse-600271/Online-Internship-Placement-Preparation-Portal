@@ -6,6 +6,8 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const internshipRoutes = require("../routes/internshipRoutes");
+const applicationRoutes = require("../routes/applicationRoutes");
+const notificationRoutes = require("../routes/notificationRoutes");
 
 const app = express();
 
@@ -13,6 +15,8 @@ app.use(cors());
 app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/internships", internshipRoutes);
+app.use("/api/applications", applicationRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.get("/", (req, res) => {
   res.status(200).json({

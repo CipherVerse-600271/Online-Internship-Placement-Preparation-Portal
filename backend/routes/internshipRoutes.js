@@ -42,7 +42,7 @@ router.get("/:id", async (req, res) => {
 // POST: Add a new internship
 router.post("/", protect, authorize("recruiter", "admin"), async (req, res) => {
   try {
-    const internship = await Internship.create(req.body);
+    const internship = await Internship.create({ ...req.body, recruiter: req.user._id });
 
     res.status(201).json({
       message: "Internship created successfully",
