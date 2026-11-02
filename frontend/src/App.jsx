@@ -28,6 +28,7 @@ function App() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [jobForm, setJobForm] = useState({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",deadline:""});
+  const [studentSkills, setStudentSkills] = useState("");
 
   const request = useCallback(async (path, options = {}) => {
     const response = await fetch(`${API}${path}`, {
@@ -178,6 +179,20 @@ function App() {
         {!user && <p className="form-note">Sign in as a student to apply.</p>}
       </section>}
 
+      {user?.role === "student" && <section className="details-panel">
+        <h2>My saved skills</h2>
+        <p>Save your skills to receive alerts when matching internships are published.</p>
+        <form onSubmit={async event => {
+          event.preventDefault();
+          try {
+            const result = await request("/auth/skills", {method:"PATCH", body:JSON.stringify({skills:studentSkills.split(",").map(x=>x.trim()).filter(Boolean)})});
+            setNotice(result.message);
+          } catch(error) { setNotice(error.message); }
+        }}>
+          <label>Skills (comma-separated)<input value={studentSkills} onChange={e=>setStudentSkills(e.target.value)} placeholder="JavaScript, React, Python"/></label>
+          <button className="apply-button">Save skills</button>
+        </form>
+      </section>}
       {user?.role === "student" && <section className="applications-section"><div className="section-heading"><div><h2>My Applications</h2><p>Your latest saved application statuses.</p></div><span className="result-count">{applications.length} submitted</span></div>
         {applications.length === 0 ? <div className="empty-state"><h3>No applications yet</h3><p>Choose an internship and submit an application.</p></div> :
           <div className="application-list">{applications.map(app => <article className="application-card" key={app._id}>
