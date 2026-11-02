@@ -48,7 +48,14 @@ const internshipSchema = new mongoose.Schema(
       default: "",
     },
 
-    recruiter: {\n      type: mongoose.Schema.Types.ObjectId,\n      ref: "User",\n      default: null,\n      index: true,\n    },\n\n    deadline: {
+    recruiter: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
+    deadline: {
       type: Date,
       default: null,
     },
