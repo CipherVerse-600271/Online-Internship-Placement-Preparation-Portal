@@ -27,6 +27,7 @@ function App() {
   const [durationFilter, setDurationFilter] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [jobForm, setJobForm] = useState({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",deadline:""});
 
   const request = useCallback(async (path, options = {}) => {
     const response = await fetch(`${API}${path}`, {
@@ -189,6 +190,29 @@ function App() {
         </article>)}
       </section>}
 
+      {user?.role === "recruiter" && <section className="details-panel">
+        <h2>Post an internship</h2>
+        <form onSubmit={async event => {
+          event.preventDefault(); setBusy(true); setNotice("");
+          try {
+            const payload = {...jobForm, stipend:Number(jobForm.stipend), skills:jobForm.skills.split(",").map(x=>x.trim()).filter(Boolean)};
+            const result = await request("/internships", {method:"POST", body:JSON.stringify(payload)});
+            setNotice(result.message); setJobForm({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",deadline:""});
+            await loadInternships();
+          } catch(error) { setNotice(error.message); } finally { setBusy(false); }
+        }}>
+          <label>Internship title<input required value={jobForm.title} onChange={e=>setJobForm({...jobForm,title:e.target.value})}/></label>
+          <label>Company<input required value={jobForm.company} onChange={e=>setJobForm({...jobForm,company:e.target.value})}/></label>
+          <label>Location<input required value={jobForm.location} onChange={e=>setJobForm({...jobForm,location:e.target.value})}/></label>
+          <label>Monthly stipend<input required type="number" min="0" value={jobForm.stipend} onChange={e=>setJobForm({...jobForm,stipend:e.target.value})}/></label>
+          <label>Duration<input required value={jobForm.duration} onChange={e=>setJobForm({...jobForm,duration:e.target.value})}/></label>
+          <label>Description<textarea required value={jobForm.description} onChange={e=>setJobForm({...jobForm,description:e.target.value})}/></label>
+          <label>Eligibility criteria<textarea required value={jobForm.eligibility} onChange={e=>setJobForm({...jobForm,eligibility:e.target.value})}/></label>
+          <label>Required skills (comma-separated)<input value={jobForm.skills} onChange={e=>setJobForm({...jobForm,skills:e.target.value})}/></label>
+          <label>Application deadline<input required type="date" min={new Date().toISOString().slice(0,10)} value={jobForm.deadline} onChange={e=>setJobForm({...jobForm,deadline:e.target.value})}/></label>
+          <button className="apply-button" disabled={busy}>Publish internship</button>
+        </form>
+      </section>}
       {(user?.role === "recruiter" || user?.role === "admin") && <section className="applications-section"><div className="section-heading"><div><h2>Applications for my internships</h2><p>Review candidate details and update selection status.</p></div><span className="result-count">{applications.length} applications</span></div>
         {applications.length === 0 ? <div className="empty-state"><p>No applications have been received for your internships.</p></div> :
           <div className="application-list">{applications.map(app => <article className="application-card" key={app._id}>
