@@ -4,12 +4,13 @@ const { body, validationResult } = require("express-validator");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const { sendVerificationEmail } = require("../utils/emailService");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+// ==========================================
 // STUDENT REGISTRATION
+// ==========================================
 router.post(
   "/register/student",
   [
@@ -17,10 +18,11 @@ router.post(
     body("email")
       .isEmail()
       .normalizeEmail()
-      .matches(/^[a-zA-Z0-9._%+-]+@stu\.pes\.edu$/)
-      .withMessage("Please use your official PESU student email address"),
+      .withMessage("Please enter a valid email address"),
     body("srn").trim().notEmpty(),
-    body("password").isLength({ min: 8 })
+    body("password")
+      .isLength({ min: 8 })
+      .withMessage("Password must be at least 8 characters long")
   ],
   async (req, res) => {
     try {
@@ -45,38 +47,17 @@ router.post(
         });
       }
 
-      const verificationToken = crypto.randomBytes(32).toString("hex");
-
       const user = await User.create({
         fullName,
         email,
         srn,
         password,
         role: "student",
-        emailVerificationToken: crypto
-          .createHash("sha256")
-          .update(verificationToken)
-          .digest("hex"),
-        emailVerificationExpiry: new Date(Date.now() + 10 * 60 * 1000)
+        isEmailVerified: true
       });
 
-      console.log("Student created. Sending verification email...");
-
-      try {
-        await sendVerificationEmail(user.email, verificationToken);
-      } catch (emailError) {
-        console.error("Verification email failed:", emailError.message);
-
-        await User.deleteOne({ _id: user._id });
-
-        return res.status(503).json({
-          message:
-            "Registration could not be completed because the verification email could not be sent. Please try again later."
-        });
-      }
-
       return res.status(201).json({
-        message: "Student registered successfully. Verification email sent.",
+        message: "Student registered successfully. You can now log in.",
         user: {
           id: user._id,
           fullName: user.fullName,
@@ -88,7 +69,6 @@ router.post(
       });
     } catch (error) {
       console.error("Student registration error:", error);
-
       return res.status(500).json({
         message: "Unable to complete student registration"
       });
@@ -96,7 +76,9 @@ router.post(
   }
 );
 
+// ==========================================
 // RECRUITER REGISTRATION
+// ==========================================
 router.post(
   "/register/recruiter",
   [
@@ -143,7 +125,6 @@ router.post(
       });
     } catch (error) {
       console.error("Recruiter registration error:", error);
-
       return res.status(500).json({
         message: "Unable to register recruiter"
       });
@@ -151,7 +132,9 @@ router.post(
   }
 );
 
+// ==========================================
 // LOGIN
+// ==========================================
 router.post(
   "/login",
   [
@@ -168,7 +151,13 @@ router.post(
 
       const { email, password } = req.body;
 
-      const user = await User.findOne({ email: email.toLowerCase() });
+      const user = await User.findOne({
+        email: email.toLowerCase()
+      });
+
+      // DEBUG 1: Check whether MongoDB finds the account
+      console.log("LOGIN DEBUG - Email:", email);
+      console.log("LOGIN DEBUG - User found:", !!user);
 
       if (!user) {
         return res.status(401).json({
@@ -188,6 +177,11 @@ router.post(
       }
 
       const isPasswordValid = await user.comparePassword(password);
+
+      // DEBUG 2: Check password and account status
+      console.log("LOGIN DEBUG - Password matches:", isPasswordValid);
+      console.log("LOGIN DEBUG - Email verified:", user.isEmailVerified);
+      console.log("LOGIN DEBUG - Role:", user.role);
 
       if (!isPasswordValid) {
         user.failedLoginAttempts += 1;
@@ -224,9 +218,14 @@ router.post(
       await user.save();
 
       const token = jwt.sign(
-        { id: user._id, role: user.role },
+        {
+          id: user._id,
+          role: user.role
+        },
         process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN || "1h" }
+        {
+          expiresIn: process.env.JWT_EXPIRES_IN || "1h"
+        }
       );
 
       return res.status(200).json({
@@ -241,7 +240,6 @@ router.post(
       });
     } catch (error) {
       console.error("Login error:", error);
-
       return res.status(500).json({
         message: "Unable to login"
       });
@@ -249,7 +247,9 @@ router.post(
   }
 );
 
+// ==========================================
 // EMAIL VERIFICATION
+// ==========================================
 router.get("/verify-email/:token", async (req, res) => {
   try {
     const hashedToken = crypto
@@ -279,14 +279,15 @@ router.get("/verify-email/:token", async (req, res) => {
     });
   } catch (error) {
     console.error("Email verification error:", error);
-
     return res.status(500).json({
       message: "Unable to verify email"
     });
   }
 });
 
-// RBAC TEST ROUTE - STUDENT ONLY
+// ==========================================
+// STUDENT DASHBOARD
+// ==========================================
 router.get(
   "/student-dashboard",
   protect,
@@ -303,7 +304,9 @@ router.get(
   }
 );
 
-// RECRUITER-ONLY PROTECTED ROUTE
+// ==========================================
+// RECRUITER DASHBOARD
+// ==========================================
 router.get(
   "/recruiter-dashboard",
   protect,
