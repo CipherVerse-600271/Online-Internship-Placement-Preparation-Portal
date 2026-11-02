@@ -13,7 +13,10 @@ router.post("/", protect, authorize("student"), async (req, res) => {
   try {
     const { internshipId, resumeUrl, resumeName, coverLetter = "" } = req.body;
     if (!mongoose.isValidObjectId(internshipId)) return res.status(400).json({ message: "A valid internshipId is required." });
-    if (!resumeUrl || !resumeName) return res.status(400).json({ message: "Resume URL and file name are required." });\n    let parsedResumeUrl;\n    try { parsedResumeUrl = new URL(resumeUrl); } catch { return res.status(400).json({ message: "Resume URL must be a valid HTTP or HTTPS link." }); }\n    if (!["http:", "https:"].includes(parsedResumeUrl.protocol)) return res.status(400).json({ message: "Resume URL must use HTTP or HTTPS." });
+    if (!resumeUrl || !resumeName) return res.status(400).json({ message: "Resume URL and file name are required." });
+    let parsedResumeUrl;
+    try { parsedResumeUrl = new URL(resumeUrl); } catch { return res.status(400).json({ message: "Resume URL must be a valid HTTP or HTTPS link." }); }
+    if (!["http:", "https:"].includes(parsedResumeUrl.protocol)) return res.status(400).json({ message: "Resume URL must use HTTP or HTTPS." });
     const internship = await Internship.findById(internshipId);
     if (!internship) return res.status(404).json({ message: "Internship not found." });
     if (internship.deadline && internship.deadline < new Date()) return res.status(400).json({ message: "The application deadline has passed." });
