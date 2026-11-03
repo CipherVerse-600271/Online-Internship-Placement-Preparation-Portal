@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import "./admin.css";
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+import { API_BASE } from "./apiBase.js";
 
 export default function AdminDashboard({ token }) {
   const [analytics, setAnalytics] = useState(null);

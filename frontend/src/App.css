@@ -1,6 +1,37 @@
 
 /* Application tracking */
 
+.app { width:100%; min-width:0; text-align:left; color:#172033; }
+.container { width:min(1126px,100%); margin:0 auto; padding:clamp(16px,3vw,32px); box-sizing:border-box; }
+.hero { padding:clamp(24px,5vw,56px) max(16px,calc((100% - 1062px)/2)); background:#172f59; color:#fff; }
+.hero-content { max-width:1126px; margin:0 auto; }
+.hero h1,.hero h2 { color:#fff; }
+.hero p { color:#f3f6fc; }
+.eyebrow { color:#334f79; font-size:.78rem; font-weight:750; letter-spacing:.1em; }
+.portal-account { margin-top:1rem; }
+.section-heading { display:flex; justify-content:space-between; align-items:flex-end; gap:1rem; flex-wrap:wrap; margin:1.5rem 0 1rem; }
+.filters { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr)); gap:.65rem; margin:1rem 0 1.4rem; }
+.filters input,.app input,.app select,.app textarea { max-width:100%; min-width:0; box-sizing:border-box; padding:.7rem .8rem; border:1px solid #98a2b3; border-radius:.5rem; background:#fff; color:#172033; font:inherit; }
+.internship-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr)); gap:1rem; }
+.internship-card,.details-panel { min-width:0; padding:clamp(16px,2.5vw,24px); border:1px solid #cbd3df; border-radius:.8rem; background:#fff; overflow-wrap:anywhere; }
+.details-panel { margin:1.2rem 0; }
+.internship-card h3,.details-panel h2,.application-card h3 { color:#172033; }
+.company-name,.form-note { color:#475467; }
+.result-count,.location-tag,.skill-tag { color:#344054; }
+.skill-list { display:flex; flex-wrap:wrap; gap:.4rem; margin:.75rem 0; }
+.skill-tag { display:inline-flex; padding:.2rem .5rem; border-radius:999px; background:#eef2f7; }
+.app button { min-height:44px; padding:.6rem .85rem; border:1px solid #344054; border-radius:.5rem; background:#244f91; color:#fff; font:inherit; font-weight:650; cursor:pointer; }
+.app button:disabled { cursor:not-allowed; opacity:.65; }
+.app :focus-visible { outline:3px solid #1d4ed8; outline-offset:3px; }
+.empty-state { padding:1.2rem; border:1px dashed #667085; border-radius:.6rem; color:#344054; }
+.footer { padding:1.5rem; text-align:center; color:#475467; }
+@media (max-width:480px) {
+  .container { padding:16px; }
+  .hero { padding:24px 16px; }
+  .section-heading { align-items:flex-start; flex-direction:column; }
+  .application-card-heading { flex-direction:column; }
+}
+
 .applications-section {
   margin-top: 42px;
   padding-top: 28px;

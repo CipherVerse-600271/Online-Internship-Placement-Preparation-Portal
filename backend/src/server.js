@@ -12,6 +12,7 @@ const notificationRoutes = require("../routes/notificationRoutes");
 const aptitudeRoutes = require("../routes/aptitudeRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const httpsOnly = require("./middleware/httpsOnly");
+const createHealthRouter = require("./routes/healthRoutes");
 
 const app = express();
 
@@ -35,12 +36,7 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    message: "Backend server is healthy"
-  });
-});
+app.use("/api/health", createHealthRouter());
 
 const PORT = process.env.PORT || 5000;
 

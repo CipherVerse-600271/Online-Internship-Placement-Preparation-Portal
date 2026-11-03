@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import AptitudeTests from "./AptitudeTests.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
+import { API_BASE } from "./apiBase.js";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API = API_BASE;
 const STATUSES = ["Pending", "Shortlisted", "Rejected", "Accepted"];
 
 function App() {

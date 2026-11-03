@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "./aptitude-tests.css";
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+import { API_BASE } from "./apiBase.js";
 
 function readToken() {
   return localStorage.getItem("portalToken") || localStorage.getItem("token") || localStorage.getItem("authToken") || "";
@@ -132,9 +131,7 @@ function AptitudeTests() {
           <p>Sign in through the portal to access timed aptitude tests.</p>
         </div>
         <div className="aptitude-message">
-          Your frontend login integration is not available in the current application yet.
-          Once the authentication module stores its JWT as <code>token</code> in local storage,
-          this section will connect automatically.
+          Sign in as a student in the portal to start a timed practice test.
         </div>
       </section>
     );

@@ -24,12 +24,21 @@ jobs:
         run: |
           node --check src/server.js
           node --check src/middleware/authMiddleware.js
+          node --check src/middleware/httpsOnly.js
+          node --check src/routes/healthRoutes.js
+          node --check src/routes/dashboardRoutes.js
+          node --check src/routes/adminRoutes.js
+          node --check src/routes/authRoutes.js
           node --check models/Internship.js
           node --check models/Application.js
+          node --check models/AptitudeSession.js
           node --check models/Notification.js
           node --check routes/internshipRoutes.js
           node --check routes/applicationRoutes.js
+          node --check routes/aptitudeRoutes.js
           node --check routes/notificationRoutes.js
+      - name: Run backend tests
+        run: npm test
 
   frontend-build:
     runs-on: ubuntu-latest
