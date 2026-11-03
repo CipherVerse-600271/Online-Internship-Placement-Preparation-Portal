@@ -21,11 +21,15 @@ const protect = async (req, res, next) => {
       });
     }
 
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+      return res.status(500).json({ message: "Authentication is not configured." });
+    }
+
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Find user from database
-    const user = await User.findById(decoded.id).select("-password");
+    const user = await User.findById(decoded.id).select("-password -resetOTP -resetOTPExpiry -resetOTPAttempts -emailVerificationToken -emailVerificationExpiry");
 
     if (!user) {
       return res.status(401).json({

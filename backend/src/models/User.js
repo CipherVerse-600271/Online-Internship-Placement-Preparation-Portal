@@ -26,6 +26,13 @@ const userSchema = new mongoose.Schema(
       trim: true
     },
 
+    companyName: { type: String, trim: true, maxlength: 160 },
+    companyWebsite: { type: String, trim: true, maxlength: 300 },
+    companyEmail: { type: String, trim: true, lowercase: true, maxlength: 254 },
+    recruiterDecisionReason: { type: String, trim: true, maxlength: 500, default: null },
+    recruiterReviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    recruiterReviewedAt: { type: Date, default: null },
+
     password: {
       type: String,
       required: true,
@@ -69,6 +76,7 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
+    resetOTPAttempts: { type: Number, default: 0 },
 
     emailVerificationToken: {
       type: String,

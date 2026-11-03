@@ -40,7 +40,14 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST: Add a new internship
-router.post("/", protect, authorize("recruiter", "admin"), async (req, res) => {
+const requireVerifiedPublisher = (req, res, next) => {
+  if (req.user.role === "recruiter" && (!req.user.isEmailVerified || req.user.recruiterStatus !== "approved")) {
+    return res.status(403).json({ message: "A verified, admin-approved recruiter account is required to publish internships." });
+  }
+  next();
+};
+
+router.post("/", protect, authorize("recruiter", "admin"), requireVerifiedPublisher, async (req, res) => {
   try {
     const internship = await Internship.create(req.body);
 
