@@ -159,6 +159,11 @@ router.post(
         });
       }
 
+      if (user.isActive === false) {
+        await recordAudit("auth.login_disabled", { subject: user._id, outcome: "failure" });
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
       if (user.lockUntil && user.lockUntil > new Date()) {
         await recordAudit("auth.login_locked", { subject: user._id, outcome: "failure" });
         return res.status(423).json({

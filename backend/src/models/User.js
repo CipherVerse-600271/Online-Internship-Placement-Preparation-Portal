@@ -47,6 +47,7 @@ const userSchema = new mongoose.Schema(
       required: true,
       default: "student"
     },
+    isActive: { type: Boolean, default: true, index: true },
 
     isEmailVerified: {
       type: Boolean,

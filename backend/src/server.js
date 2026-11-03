@@ -9,8 +9,14 @@ const internshipRoutes = require("../routes/internshipRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const applicationRoutes = require("../routes/applicationRoutes");
 const notificationRoutes = require("../routes/notificationRoutes");
+const aptitudeRoutes = require("../routes/aptitudeRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const httpsOnly = require("./middleware/httpsOnly");
 
 const app = express();
+
+if (process.env.TRUST_PROXY === "1") app.set("trust proxy", 1);
+app.use(httpsOnly);
 
 app.use(cors());
 app.use(express.json());
@@ -19,6 +25,8 @@ app.use("/api/internships", internshipRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/aptitude", aptitudeRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 app.get("/", (req, res) => {
   res.status(200).json({

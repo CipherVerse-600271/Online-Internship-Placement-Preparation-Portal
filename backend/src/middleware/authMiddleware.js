@@ -36,6 +36,7 @@ const protect = async (req, res, next) => {
         message: "User no longer exists."
       });
     }
+    if (user.isActive === false) return res.status(403).json({ message: "This account is disabled." });
 
     // Attach authenticated user to request
     req.user = user;

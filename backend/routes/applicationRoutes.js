@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const Application = require("../models/Application");
 const Internship = require("../models/Internship");
 const Notification = require("../models/Notification");
+const { sendApplicationStatusEmail } = require("../src/utils/emailService");
 const { protect, authorize } = require("../src/middleware/authMiddleware");
 
 const router = express.Router();
@@ -66,7 +67,9 @@ router.patch("/:id/status", protect, authorize("recruiter", "admin"), async (req
     const { status } = req.body;
     if (!STATUSES.includes(status)) return res.status(400).json({ message: "Status must be Pending, Shortlisted, Rejected, or Accepted." });
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "Invalid application ID." });
-    const application = await Application.findById(req.params.id).populate("internship", "title company recruiter");
+    const application = await Application.findById(req.params.id)
+      .populate("student", "fullName email")
+      .populate("internship", "title company recruiter");
     if (!application) return res.status(404).json({ message: "Application not found." });
     if (req.user.role !== "admin" && String(application.internship.recruiter) !== String(req.user._id)) {
       return res.status(403).json({ message: "You can only manage applications for your own internships." });
@@ -75,14 +78,26 @@ router.patch("/:id/status", protect, authorize("recruiter", "admin"), async (req
       application.status = status;
       await application.save();
       await Notification.create({
-        student: application.student, application: application._id, status,
+        student: application.student._id, application: application._id, status,
         message: `Your application for "${application.internship.title}" has been ${status.toLowerCase()}.`
       });
+
+      // Email failure must not undo the saved application status or in-app notification.
+      try {
+        await sendApplicationStatusEmail(
+          application.student.email,
+          application.student.fullName,
+          application.internship.title,
+          status
+        );
+      } catch (emailError) {
+        console.error("Application status email could not be sent:", emailError.message);
+      }
     }
     const updated = await Application.findById(application._id)
       .populate("student", "fullName email srn")
       .populate("internship", "title company");
-    res.json({ message: "Application status updated.", application: updated });
+    res.json({ message: "Application status updated. An in-app notification was created; email delivery is attempted when SMTP is configured.", application: updated });
   } catch (error) {
     res.status(500).json({ message: "Unable to update application status." });
   }
