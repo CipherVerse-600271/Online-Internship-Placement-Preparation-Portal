@@ -1,4 +1,3 @@
-
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
@@ -14,12 +13,11 @@ const sendVerificationEmail = async (email, token) => {
   const verificationLink =
     `http://localhost:5000/api/auth/verify-email/${token}`;
 
-  // Development-only verification link for local testing
   if (process.env.NODE_ENV === "development") {
-    console.log("\n========== EMAIL VERIFICATION ==========");
+    console.log("\\n========== EMAIL VERIFICATION ==========");
     console.log("Recipient:", email);
     console.log("Verification link:", verificationLink);
-    console.log("========================================\n");
+    console.log("========================================\\n");
   }
 
   const mailOptions = {
@@ -37,17 +35,54 @@ const sendVerificationEmail = async (email, token) => {
   };
 
   console.log("Attempting to send verification email to:", email);
-
   const info = await transporter.sendMail(mailOptions);
-
   console.log("Email sending response:", {
     messageId: info.messageId,
     accepted: info.accepted,
     rejected: info.rejected,
     response: info.response
   });
-
   return info;
 };
 
-module.exports = { sendVerificationEmail };
+// Send an email when a recruiter changes a student's application status.
+const sendApplicationStatusEmail = async (email, studentName, internshipTitle, status) => {
+  if (!email) {
+    throw new Error("Student email address is missing.");
+  }
+
+  const safe = value => String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character]);
+
+  const mailOptions = {
+    from: `"Internship Placement Portal" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: `Application update: ${status}`,
+    text: `Hello ${studentName || "Student"}, your application for ${internshipTitle} has been updated to: ${status}.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #243247;">
+        <h2>Application Status Update</h2>
+        <p>Hello ${safe(studentName || "Student")},</p>
+        <p>Your application for <strong>${safe(internshipTitle)}</strong> has been updated.</p>
+        <p>New status: <strong>${safe(status)}</strong></p>
+        <p>Sign in to the Online Internship &amp; Placement Preparation Portal to view your application.</p>
+        <p>Regards,<br/>Internship Placement Portal Team</p>
+      </div>
+    `
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  console.log("Application status email sent:", {
+    messageId: info.messageId,
+    accepted: info.accepted,
+    rejected: info.rejected
+  });
+  return info;
+};
+
+module.exports = { sendVerificationEmail, sendApplicationStatusEmail };
