@@ -285,6 +285,39 @@ function App() {
     }
   }
 
+  // Open the internship connected to a matching notification.
+  async function openNotification(item) {
+    try {
+      if (item.internship) {
+        const internship = await request(
+          `/internships/${item.internship}`
+        );
+
+        setSelected(internship);
+        setNotice("Internship details opened successfully.");
+
+        // Scroll to the details panel after React renders the selected internship.
+        window.setTimeout(() => {
+          document
+            .getElementById("internship-details")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
+      } else {
+        setNotice("This notification does not have linked internship details.");
+      }
+
+      if (!item.read) {
+        await request(`/notifications/${item._id}/read`, {
+          method: "PATCH",
+          body: "{}"
+        });
+        await loadDashboard();
+      }
+    } catch (error) {
+      setNotice(error.message);
+    }
+  }
+
   const filtered = internships.filter(job =>
     [
       job.title,
@@ -534,7 +567,7 @@ function App() {
         )}
 
         {selected && (
-          <section className="details-panel">
+          <section className="details-panel" id="internship-details">
             <p className="eyebrow">INTERNSHIP DETAILS</p>
             <h2>{selected.title}</h2>
             <p className="company-name">{selected.company}</p>
@@ -668,8 +701,34 @@ function App() {
             ) : (
               notifications.map(item => (
                 <article className="application-card" key={item._id}>
-                  <p>{item.message}</p>
-                  <small>
+                  <button
+                    type="button"
+                    className="notification-open-button"
+                    onClick={() => openNotification(item)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      padding: 0,
+                      border: "none",
+                      background: "transparent",
+                      color: "inherit",
+                      textAlign: "left",
+                      cursor: item.internship ? "pointer" : "default"
+                    }}
+                    disabled={!item.internship}
+                    title={
+                      item.internship
+                        ? "Click to view internship details"
+                        : "No linked internship details"
+                    }
+                  >
+                    <p>{item.message}</p>
+                    {item.internship && (
+                      <small>Click to view internship details</small>
+                    )}
+                  </button>
+
+                  <small style={{ display: "block", marginTop: "8px" }}>
                     {new Date(item.createdAt).toLocaleString()}
                   </small>
 
