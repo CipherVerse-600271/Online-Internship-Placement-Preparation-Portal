@@ -320,4 +320,16 @@ router.get(
   }
 );
 
+
+router.patch("/skills", protect, authorize("student"), async (req, res) => {
+  try {
+    const skills = Array.isArray(req.body.skills) ? req.body.skills : String(req.body.skills || "").split(",");
+    const cleaned = [...new Set(skills.map(skill => String(skill).trim()).filter(Boolean))];
+    const user = await User.findByIdAndUpdate(req.user._id, { skills: cleaned }, { new: true }).select("fullName email skills");
+    res.json({ message: "Your skills have been saved.", user });
+  } catch (error) {
+    res.status(400).json({ message: "Unable to save skills." });
+  }
+});
+
 module.exports = router;
