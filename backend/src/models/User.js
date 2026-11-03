@@ -26,6 +26,8 @@ const userSchema = new mongoose.Schema(
       trim: true
     },
 
+    skills: { type: [String], default: [] },
+
     companyName: { type: String, trim: true, maxlength: 160 },
     companyWebsite: { type: String, trim: true, maxlength: 300 },
     companyEmail: { type: String, trim: true, lowercase: true, maxlength: 254 },

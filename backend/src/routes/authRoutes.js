@@ -370,4 +370,16 @@ router.get(
     });
   }
 );
+
+router.patch("/skills", protect, authorize("student"), async (req, res) => {
+  try {
+    if (!Array.isArray(req.body.skills) && typeof req.body.skills !== "string") return res.status(400).json({ message: "Skills must be a list or comma-separated string." });
+    const values = Array.isArray(req.body.skills) ? req.body.skills : req.body.skills.split(",");
+    const skills = [...new Set(values.map((skill) => String(skill).trim()).filter(Boolean))].slice(0, 50);
+    if (skills.some((skill) => skill.length > 80)) return res.status(400).json({ message: "Each skill must be 80 characters or fewer." });
+    const user = await User.findByIdAndUpdate(req.user._id, { skills }, { new: true }).select("fullName email skills");
+    return res.status(200).json({ message: "Your skills have been saved.", user });
+  } catch (error) { console.error("Update student skills failed:", error.message); return res.status(400).json({ message: "Unable to save skills." }); }
+});
+
 module.exports = router;

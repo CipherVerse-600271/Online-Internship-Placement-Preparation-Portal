@@ -1,578 +1,244 @@
-
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 
-const API_URL = "http://localhost:5000/api/internships";
+const API = "http://localhost:5000/api";
+const STATUSES = ["Pending", "Shortlisted", "Rejected", "Accepted"];
 
 function App() {
-  const [internships, setInternships] = useState([]);
-  const [selectedInternship, setSelectedInternship] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState("");
-
-  const [search, setSearch] = useState("");
-  const [location, setLocation] = useState("All");
-  const [minStipend, setMinStipend] = useState("All");
-  const [duration, setDuration] = useState("All");
-
-  const [applications, setApplications] = useState([]);
-  const [resume, setResume] = useState(null);
-  const [coverLetter, setCoverLetter] = useState("");
-  const [message, setMessage] = useState("");
-
-  // Load internships from the backend
-  useEffect(() => {
-    async function fetchInternships() {
-      try {
-        setLoading(true);
-        setApiError("");
-
-        const response = await fetch(API_URL);
-
-        if (!response.ok) {
-          throw new Error("Unable to fetch internships.");
-        }
-
-        const data = await response.json();
-
-        const formattedInternships = data.map((job) => ({
-          ...job,
-          id: job._id,
-          skills: Array.isArray(job.skills) ? job.skills : [],
-          eligibility:
-            job.eligibility ||
-            "Please check the required skills and internship description.",
-        }));
-
-        setInternships(formattedInternships);
-        setSelectedInternship(formattedInternships[0] || null);
-      } catch (error) {
-        console.error("Error loading internships:", error);
-        setApiError(
-          "Could not load internships. Please make sure your backend and MongoDB are running."
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchInternships();
-  }, []);
-
-  // Filter internships using search and filter selections
-  const filteredInternships = internships.filter((job) => {
-    const searchText = search.toLowerCase().trim();
-
-    const searchableText = [
-      job.title,
-      job.company,
-      job.location,
-      job.duration,
-      ...job.skills,
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    const matchesSearch = searchableText.includes(searchText);
-
-    const matchesLocation =
-      location === "All" || job.location === location;
-
-    const matchesStipend =
-      minStipend === "All" ||
-      Number(job.stipend) >= Number(minStipend);
-
-    const matchesDuration =
-      duration === "All" || job.duration === duration;
-
-    return (
-      matchesSearch &&
-      matchesLocation &&
-      matchesStipend &&
-      matchesDuration
-    );
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("portalUser") || "null"); } catch { return null; }
   });
+  const [token, setToken] = useState(() => localStorage.getItem("portalToken") || "");
+  const [internships, setInternships] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [authMode, setAuthMode] = useState("login");
+  const [authRole, setAuthRole] = useState("student");
+  const [auth, setAuth] = useState({ fullName: "", email: "", srn: "", password: "" });
+  const [resumeUrl, setResumeUrl] = useState("");
+  const [resumeName, setResumeName] = useState("");
+  const [coverLetter, setCoverLetter] = useState("");
+  const [search, setSearch] = useState("");
+  const [skillFilter, setSkillFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
+  const [minStipend, setMinStipend] = useState("");
+  const [maxStipend, setMaxStipend] = useState("");
+  const [durationFilter, setDurationFilter] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [jobForm, setJobForm] = useState({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",deadline:""});
+  const [studentSkills, setStudentSkills] = useState("");
 
-  // Submit a demo application
-  function handleApply(event) {
-    event.preventDefault();
+  const request = useCallback(async (path, options = {}) => {
+    const response = await fetch(`${API}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {})
+      }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || data.errors?.[0]?.msg || "Request failed.");
+    return data;
+  }, [token]);
 
-    if (!selectedInternship) {
-      setMessage("Please select an internship first.");
-      return;
-    }
+  const loadInternships = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (search.trim()) params.set("search", search.trim());
+      if (skillFilter.trim()) params.set("skill", skillFilter.trim());
+      if (locationFilter.trim()) params.set("location", locationFilter.trim());
+      if (minStipend !== "") params.set("minStipend", minStipend);
+      if (maxStipend !== "") params.set("maxStipend", maxStipend);
+      if (durationFilter.trim()) params.set("duration", durationFilter.trim());
+      const data = await request("/internships" + (params.toString() ? "?" + params.toString() : ""));
+      setInternships(data);
+      setSelected(current => current || data[0] || null);
+    } catch (error) { setNotice(error.message); }
+  }, [request, search, skillFilter, locationFilter, minStipend, maxStipend, durationFilter]);
 
-    const alreadyApplied = applications.some(
-      (application) =>
-        application.internshipId === selectedInternship.id
-    );
+  const loadDashboard = useCallback(async () => {
+    if (!token || !user) return;
+    try {
+      if (user.role === "student") {
+        const [mine, alerts] = await Promise.all([
+          request("/applications/mine"), request("/notifications")
+        ]);
+        setApplications(mine);
+        setNotifications(alerts);
+      } else if (user.role === "recruiter" || user.role === "admin") {
+        setApplications(await request("/applications/recruiter"));
+      }
+    } catch (error) { setNotice(error.message); }
+  }, [request, token, user]);
 
-    if (alreadyApplied) {
-      setMessage("You have already applied for this internship.");
-      return;
-    }
+  useEffect(() => { loadInternships(); }, [loadInternships]);
+  useEffect(() => { loadDashboard(); }, [loadDashboard]);
 
-    if (!resume) {
-      setMessage("Please select your resume before applying.");
-      return;
-    }
-
-    const newApplication = {
-      applicationId: `${selectedInternship.id}-${Date.now()}`,
-      internshipId: selectedInternship.id,
-      title: selectedInternship.title,
-      company: selectedInternship.company,
-      appliedAt: new Date().toLocaleDateString(),
-      status: "Pending",
-      resumeName: resume.name,
-      coverLetter: coverLetter.trim(),
-    };
-
-    setApplications((previous) => [...previous, newApplication]);
-
-    setMessage(
-      `Your application for ${selectedInternship.title} was submitted in this demo.`
-    );
-
-    setResume(null);
-    setCoverLetter("");
-    event.target.reset();
+  async function submitAuth(event) {
+    event.preventDefault(); setBusy(true); setNotice("");
+    try {
+      const endpoint = authMode === "login"
+        ? "/auth/login"
+        : authRole === "student" ? "/auth/register/student" : "/auth/register/recruiter";
+      const payload = authMode === "login" ? { email: auth.email, password: auth.password } : auth;
+      const data = await request(endpoint, { method: "POST", body: JSON.stringify(payload) });
+      if (authMode === "register") {
+        setNotice(data.message + (authRole === "recruiter" ? " An administrator must approve the account before login." : ""));
+      } else {
+        localStorage.setItem("portalToken", data.token);
+        localStorage.setItem("portalUser", JSON.stringify(data.user));
+        setToken(data.token); setUser(data.user); setNotice("Welcome, " + data.user.fullName + "!");
+      }
+    } catch (error) { setNotice(error.message); }
+    finally { setBusy(false); }
   }
 
-  // Update demo application status
-  function updateApplicationStatus(applicationId, newStatus) {
-    setApplications((previous) =>
-      previous.map((application) =>
-        application.applicationId === applicationId
-          ? { ...application, status: newStatus }
-          : application
-      )
-    );
+  function logout() {
+    localStorage.removeItem("portalToken"); localStorage.removeItem("portalUser");
+    setToken(""); setUser(null); setApplications([]); setNotifications([]);
+    setNotice("You have been logged out.");
   }
 
-  function resetFilters() {
-    setSearch("");
-    setLocation("All");
-    setMinStipend("All");
-    setDuration("All");
+  async function apply(event) {
+    event.preventDefault(); setBusy(true); setNotice("");
+    try {
+      await request("/applications", { method: "POST", body: JSON.stringify({
+        internshipId: selected._id, resumeUrl, resumeName, coverLetter
+      })});
+      setNotice("Application submitted successfully.");
+      setResumeUrl(""); setResumeName(""); setCoverLetter("");
+      await loadDashboard();
+    } catch (error) { setNotice(error.message); }
+    finally { setBusy(false); }
   }
 
-  const pendingCount = applications.filter(
-    (application) => application.status === "Pending"
-  ).length;
+  async function updateStatus(id, status) {
+    try {
+      await request(`/applications/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
+      setNotice("Application status updated. The student has been notified.");
+      await loadDashboard();
+    } catch (error) { setNotice(error.message); }
+  }
 
-  const shortlistedCount = applications.filter(
-    (application) => application.status === "Shortlisted"
-  ).length;
+  async function markRead(id) {
+    try {
+      await request(`/notifications/${id}/read`, { method: "PATCH", body: "{}" });
+      await loadDashboard();
+    } catch (error) { setNotice(error.message); }
+  }
 
-  const rejectedCount = applications.filter(
-    (application) => application.status === "Rejected"
-  ).length;
+  const filtered = internships;
 
-  return (
-    <div className="app">
-      <header className="hero">
-        <div className="hero-content">
-          <p className="eyebrow">YOUR CAREER STARTS HERE</p>
-          <h1>Online Internship Portal</h1>
-          <p>
-            Discover internships, explore opportunities, and take
-            the next step in your career.
-          </p>
-        </div>
-      </header>
+  return <div className="app">
+    <header className="hero"><div className="hero-content">
+      <p className="eyebrow">YOUR CAREER STARTS HERE</p><h1>Online Internship Portal</h1>
+      <p>Discover opportunities, apply, and track every application.</p>
+      <div className="portal-account">{user ? <><span>Signed in as <b>{user.fullName}</b> ({user.role})</span><button onClick={logout}>Log out</button></> : <span>Sign in to apply and manage applications</span>}</div>
+    </div></header>
+    <main className="container">
+      {notice && <p className="feedback-message" role="status">{notice}</p>}
+      {!user && <section className="details-panel auth-panel">
+        <h2>{authMode === "login" ? "Sign in" : "Create an account"}</h2>
+        <form onSubmit={submitAuth}>
+          {authMode === "register" && <><label>Account type</label><select value={authRole} onChange={e => setAuthRole(e.target.value)}><option value="student">Student</option><option value="recruiter">Recruiter</option></select>
+            <label>Full name</label><input required value={auth.fullName} onChange={e => setAuth({...auth, fullName:e.target.value})}/></>}
+          <label>Email</label><input type="email" required value={auth.email} onChange={e => setAuth({...auth,email:e.target.value})}/>
+          {authMode === "register" && authRole === "student" && <><label>SRN</label><input required value={auth.srn} onChange={e => setAuth({...auth,srn:e.target.value})}/></>}
+          <label>Password</label><input type="password" minLength="8" required value={auth.password} onChange={e => setAuth({...auth,password:e.target.value})}/>
+          <button className="apply-button" disabled={busy}>{busy ? "Please wait..." : authMode === "login" ? "Sign in" : "Register"}</button>
+        </form>
+        <button className="details-button" onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}>{authMode === "login" ? "New here? Register" : "Already registered? Sign in"}</button>
+        <p className="form-note">Student registration uses your official PESU student email and requires email verification. Recruiter accounts require admin approval.</p>
+      </section>}
 
-      <main className="container">
-        <section className="section-heading">
-          <div>
-            <h2>Explore Internships</h2>
-            <p>Find opportunities that match your skills and interests.</p>
-          </div>
+      <section className="section-heading"><div><h2>Explore Internships</h2><p>Search available roles and select one to view details.</p></div><span className="result-count">{filtered.length} opportunities</span></section>
+      <section className="filters"><input type="search" placeholder="Search role or company..." value={search} onChange={e => setSearch(e.target.value)}/><input placeholder="Skill" value={skillFilter} onChange={e => setSkillFilter(e.target.value)}/><input placeholder="Location" value={locationFilter} onChange={e => setLocationFilter(e.target.value)}/><input type="number" min="0" placeholder="Minimum stipend" value={minStipend} onChange={e => setMinStipend(e.target.value)}/><input type="number" min="0" placeholder="Maximum stipend" value={maxStipend} onChange={e => setMaxStipend(e.target.value)}/><input placeholder="Duration" value={durationFilter} onChange={e => setDurationFilter(e.target.value)}/><button type="button" className="details-button" onClick={() => {setSearch("");setSkillFilter("");setLocationFilter("");setMinStipend("");setMaxStipend("");setDurationFilter("");}}>Clear filters</button></section>
+      <section className="internship-list">
+        {filtered.map(job => <article className={selected?._id === job._id ? "internship-card selected-card" : "internship-card"} key={job._id}>
+          <div className="card-top"><div className="company-icon">{job.company?.[0] || "I"}</div><span className="location-tag">{job.location}</span></div>
+          <h3>{job.title}</h3><p className="company-name">{job.company}</p>
+          <div className="job-meta"><span>₹{Number(job.stipend || 0).toLocaleString("en-IN")}/month</span><span>{job.duration}</span></div>
+          <div className="skill-list">{(job.skills || []).map(skill => <span className="skill-tag" key={skill}>{skill}</span>)}</div>
+          <button className="details-button" onClick={() => setSelected(job)}>View details / Apply</button>
+        </article>)}
+        {filtered.length === 0 && <div className="empty-state">No internships match your search.</div>}
+      </section>
 
-          <span className="result-count">
-            {loading ? "Loading..." : `${filteredInternships.length} opportunities`}
-          </span>
-        </section>
+      {selected && <section className="details-panel"><p className="eyebrow">INTERNSHIP DETAILS</p><h2>{selected.title}</h2><p className="company-name">{selected.company}</p>
+        <p><b>Location:</b> {selected.location} · <b>Stipend:</b> ₹{selected.stipend}/month · <b>Duration:</b> {selected.duration}</p>
+        <p>{selected.description}</p><p><b>Eligibility:</b> {selected.eligibility || "Not specified"}</p><p><b>Skills:</b> {(selected.skills || []).join(", ") || "Not specified"}</p><p><b>Deadline:</b> {selected.deadline ? new Date(selected.deadline).toLocaleDateString() : "Not specified"}</p><p><b>Application status:</b> {selected.deadline && new Date(selected.deadline) < new Date() ? "Closed" : "Open"}</p>
+        {user?.role === "student" && <><hr/><h3>Submit your application</h3><form onSubmit={apply}>
+          <label>Resume link (Google Drive / portfolio URL)</label><input type="url" required placeholder="https://..." value={resumeUrl} onChange={e => setResumeUrl(e.target.value)}/>
+          <label>Resume file name</label><input required placeholder="MyResume.pdf" value={resumeName} onChange={e => setResumeName(e.target.value)}/>
+          <label>Cover letter (optional)</label><textarea rows="4" value={coverLetter} onChange={e => setCoverLetter(e.target.value)}/>
+          <button className="apply-button" disabled={busy}>Submit application</button>
+        </form></>}
+        {!user && <p className="form-note">Sign in as a student to apply.</p>}
+      </section>}
 
-        <section className="filters">
-          <input
-            type="search"
-            placeholder="Search role, company, or skill..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            aria-label="Search internships"
-          />
+      {user?.role === "student" && <section className="details-panel">
+        <h2>My saved skills</h2>
+        <p>Save your skills to receive alerts when matching internships are published.</p>
+        <form onSubmit={async event => {
+          event.preventDefault();
+          try {
+            const result = await request("/auth/skills", {method:"PATCH", body:JSON.stringify({skills:studentSkills.split(",").map(x=>x.trim()).filter(Boolean)})});
+            setNotice(result.message);
+          } catch(error) { setNotice(error.message); }
+        }}>
+          <label>Skills (comma-separated)<input value={studentSkills} onChange={e=>setStudentSkills(e.target.value)} placeholder="JavaScript, React, Python"/></label>
+          <button className="apply-button">Save skills</button>
+        </form>
+      </section>}
+      {user?.role === "student" && <section className="applications-section"><div className="section-heading"><div><h2>My Applications</h2><p>Your latest saved application statuses.</p></div><span className="result-count">{applications.length} submitted</span></div>
+        {applications.length === 0 ? <div className="empty-state"><h3>No applications yet</h3><p>Choose an internship and submit an application.</p></div> :
+          <div className="application-list">{applications.map(app => <article className="application-card" key={app._id}>
+            <div className="application-card-heading"><div><h3>{app.internship?.title}</h3><p className="company-name">{app.internship?.company}</p></div><span className={`status-badge status-${app.status.toLowerCase()}`}>{app.status}</span></div>
+            <p><b>Applied:</b> {new Date(app.createdAt).toLocaleDateString()}</p><p><b>Resume:</b> <a href={app.resumeUrl} target="_blank" rel="noreferrer">{app.resumeName} (open)</a></p>
+            {app.coverLetter && <p><b>Cover letter:</b> {app.coverLetter}</p>}
+          </article>)}</div>}
+        <h2>Notifications</h2>{notifications.length === 0 ? <p>No status notifications yet.</p> : notifications.map(item => <article className="application-card" key={item._id}>
+          <p>{item.message}</p><small>{new Date(item.createdAt).toLocaleString()}</small>{!item.read && <button className="details-button" onClick={() => markRead(item._id)}>Mark as read</button>}
+        </article>)}
+      </section>}
 
-          <select
-            value={location}
-            onChange={(event) => setLocation(event.target.value)}
-            aria-label="Filter by location"
-          >
-            <option value="All">All locations</option>
-            <option value="Remote">Remote</option>
-            <option value="Chennai">Chennai</option>
-            <option value="Bengaluru">Bengaluru</option>
-          </select>
-
-          <select
-            value={minStipend}
-            onChange={(event) => setMinStipend(event.target.value)}
-            aria-label="Filter by minimum monthly stipend"
-          >
-            <option value="All">Any stipend</option>
-            <option value="5000">₹5,000+/month</option>
-            <option value="10000">₹10,000+/month</option>
-            <option value="12000">₹12,000+/month</option>
-          </select>
-
-          <select
-            value={duration}
-            onChange={(event) => setDuration(event.target.value)}
-            aria-label="Filter by duration"
-          >
-            <option value="All">Any duration</option>
-            <option value="3 months">3 months</option>
-            <option value="6 months">6 months</option>
-          </select>
-
-          <button
-            type="button"
-            className="reset-button"
-            onClick={resetFilters}
-          >
-            Reset
-          </button>
-        </section>
-
-        {loading && (
-          <p role="status">Loading internships from the database...</p>
-        )}
-
-        {apiError && (
-          <div className="empty-state" role="alert">
-            <h3>Unable to load internships</h3>
-            <p>{apiError}</p>
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-            >
-              Try again
-            </button>
-          </div>
-        )}
-
-        {!loading && !apiError && (
-          <section className="internship-list">
-            {filteredInternships.length === 0 ? (
-              <div className="empty-state">
-                <h3>
-                  {internships.length === 0
-                    ? "No internships available yet"
-                    : "No internships found"}
-                </h3>
-                <p>
-                  {internships.length === 0
-                    ? "Internships added to the database will appear here."
-                    : "Try changing your search or filters."}
-                </p>
-
-                {internships.length > 0 && (
-                  <button type="button" onClick={resetFilters}>
-                    Clear filters
-                  </button>
-                )}
-              </div>
-            ) : (
-              filteredInternships.map((job) => {
-                const hasApplied = applications.some(
-                  (application) => application.internshipId === job.id
-                );
-
-                return (
-                  <article
-                    className={`internship-card ${
-                      selectedInternship?.id === job.id
-                        ? "selected-card"
-                        : ""
-                    }`}
-                    key={job.id}
-                  >
-                    <div className="card-top">
-                      <div className="company-icon">
-                        {job.company?.charAt(0) || "I"}
-                      </div>
-                      <span className="location-tag">{job.location}</span>
-                    </div>
-
-                    <h3>{job.title}</h3>
-                    <p className="company-name">{job.company}</p>
-
-                    <div className="job-meta">
-                      <span>
-                        ₹{Number(job.stipend || 0).toLocaleString("en-IN")}
-                        /month
-                      </span>
-                      <span>{job.duration}</span>
-                    </div>
-
-                    <div className="skill-list">
-                      {job.skills.map((skill) => (
-                        <span className="skill-tag" key={skill}>
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="card-actions">
-                      <button
-                        type="button"
-                        className="details-button"
-                        onClick={() => {
-                          setSelectedInternship(job);
-                          setMessage("");
-                          setResume(null);
-                          setCoverLetter("");
-                        }}
-                      >
-                        View details
-                      </button>
-
-                      <span
-                        className={
-                          hasApplied ? "applied-label" : "available-label"
-                        }
-                      >
-                        {hasApplied ? "Applied" : "Open"}
-                      </span>
-                    </div>
-                  </article>
-                );
-              })
-            )}
-          </section>
-        )}
-
-        {selectedInternship && (
-          <section className="details-panel">
-            <p className="eyebrow">INTERNSHIP DETAILS</p>
-            <h2>{selectedInternship.title}</h2>
-            <p className="company-name">{selectedInternship.company}</p>
-
-            <div className="detail-facts">
-              <p>
-                <strong>Location:</strong> {selectedInternship.location}
-              </p>
-              <p>
-                <strong>Monthly stipend:</strong> ₹
-                {Number(selectedInternship.stipend || 0).toLocaleString("en-IN")}
-              </p>
-              <p>
-                <strong>Duration:</strong> {selectedInternship.duration}
-              </p>
-              {selectedInternship.deadline && (
-                <p>
-                  <strong>Application deadline:</strong>{" "}
-                  {new Date(selectedInternship.deadline).toLocaleDateString()}
-                </p>
-              )}
-            </div>
-
-            <h3>About this internship</h3>
-            <p>{selectedInternship.description}</p>
-
-            <h3>Eligibility</h3>
-            <p>{selectedInternship.eligibility}</p>
-
-            <h3>Required skills</h3>
-            <div className="skill-list">
-              {selectedInternship.skills.map((skill) => (
-                <span className="skill-tag" key={skill}>
-                  {skill}
-                </span>
-              ))}
-            </div>
-
-            {selectedInternship.applyLink && (
-              <p>
-                <strong>Application link:</strong>{" "}
-                <a
-                  href={selectedInternship.applyLink}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Apply on company website
-                </a>
-              </p>
-            )}
-
-            <hr />
-
-            <h3>Apply for this internship</h3>
-            <p className="form-note">
-              Select a resume and optionally write a cover letter.
-            </p>
-
-            <form onSubmit={handleApply}>
-              <label htmlFor="resume">Resume (PDF, DOC, or DOCX)</label>
-              <input
-                id="resume"
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={(event) =>
-                  setResume(event.target.files?.[0] || null)
-                }
-                required
-              />
-
-              {resume && (
-                <p className="file-name">Selected: {resume.name}</p>
-              )}
-
-              <label htmlFor="coverLetter">Cover letter (optional)</label>
-              <textarea
-                id="coverLetter"
-                rows="4"
-                placeholder="Tell the recruiter why you're a good fit..."
-                value={coverLetter}
-                onChange={(event) => setCoverLetter(event.target.value)}
-              />
-
-              <button
-                className="apply-button"
-                type="submit"
-                disabled={applications.some(
-                  (application) =>
-                    application.internshipId === selectedInternship.id
-                )}
-              >
-                {applications.some(
-                  (application) =>
-                    application.internshipId === selectedInternship.id
-                )
-                  ? "Already Applied"
-                  : "Submit Application"}
-              </button>
-            </form>
-
-            {message && (
-              <p className="feedback-message" role="status">
-                {message}
-              </p>
-            )}
-
-            <p className="demo-note">
-              Demo only: applications are held temporarily in page state.
-              The resume is selected locally and is not uploaded to the server.
-            </p>
-          </section>
-        )}
-
-        <section className="applications-section">
-          <div className="section-heading">
-            <div>
-              <h2>My Applications</h2>
-              <p>Track the status of your submitted applications.</p>
-            </div>
-            <span className="result-count">
-              {applications.length} submitted
-            </span>
-          </div>
-
-          <div className="status-summary">
-            <div className="status-summary-card">
-              <span>Total</span>
-              <strong>{applications.length}</strong>
-            </div>
-            <div className="status-summary-card">
-              <span>Pending</span>
-              <strong>{pendingCount}</strong>
-            </div>
-            <div className="status-summary-card">
-              <span>Shortlisted</span>
-              <strong>{shortlistedCount}</strong>
-            </div>
-            <div className="status-summary-card">
-              <span>Rejected</span>
-              <strong>{rejectedCount}</strong>
-            </div>
-          </div>
-
-          {applications.length === 0 ? (
-            <div className="empty-state">
-              <h3>No applications yet</h3>
-              <p>
-                Choose an internship above and submit your first application.
-              </p>
-            </div>
-          ) : (
-            <div className="application-list">
-              {applications.map((application) => (
-                <article
-                  className="application-card"
-                  key={application.applicationId}
-                >
-                  <div className="application-card-heading">
-                    <div>
-                      <h3>{application.title}</h3>
-                      <p className="company-name">{application.company}</p>
-                    </div>
-                    <span
-                      className={`status-badge status-${application.status.toLowerCase()}`}
-                    >
-                      {application.status}
-                    </span>
-                  </div>
-
-                  <p>
-                    <strong>Applied on:</strong> {application.appliedAt}
-                  </p>
-                  <p className="file-name">
-                    <strong>Resume:</strong> {application.resumeName}
-                  </p>
-
-                  {application.coverLetter && (
-                    <p>
-                      <strong>Cover letter:</strong> {application.coverLetter}
-                    </p>
-                  )}
-
-                  <label htmlFor={`status-${application.applicationId}`}>
-                    Demo: Change application status
-                  </label>
-                  <select
-                    id={`status-${application.applicationId}`}
-                    value={application.status}
-                    onChange={(event) =>
-                      updateApplicationStatus(
-                        application.applicationId,
-                        event.target.value
-                      )
-                    }
-                  >
-                    <option value="Pending">Pending</option>
-                    <option value="Shortlisted">Shortlisted</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-                </article>
-              ))}
-            </div>
-          )}
-
-          <p className="demo-note">
-            Status changes are for demonstration only. In the complete system,
-            recruiters would update statuses through the backend.
-          </p>
-        </section>
-      </main>
-
-      <footer className="footer">
-        <p>
-          Online Internship &amp; Placement Preparation Portal · Team 12
-        </p>
-        <p>Internship Listings &amp; Applications Module</p>
-      </footer>
-    </div>
-  );
+      {user?.role === "recruiter" && <section className="details-panel">
+        <h2>Post an internship</h2>
+        <form onSubmit={async event => {
+          event.preventDefault(); setBusy(true); setNotice("");
+          try {
+            const payload = {...jobForm, stipend:Number(jobForm.stipend), skills:jobForm.skills.split(",").map(x=>x.trim()).filter(Boolean)};
+            const result = await request("/internships", {method:"POST", body:JSON.stringify(payload)});
+            setNotice(result.message); setJobForm({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",deadline:""});
+            await loadInternships();
+          } catch(error) { setNotice(error.message); } finally { setBusy(false); }
+        }}>
+          <label>Internship title<input required value={jobForm.title} onChange={e=>setJobForm({...jobForm,title:e.target.value})}/></label>
+          <label>Company<input required value={jobForm.company} onChange={e=>setJobForm({...jobForm,company:e.target.value})}/></label>
+          <label>Location<input required value={jobForm.location} onChange={e=>setJobForm({...jobForm,location:e.target.value})}/></label>
+          <label>Monthly stipend<input required type="number" min="0" value={jobForm.stipend} onChange={e=>setJobForm({...jobForm,stipend:e.target.value})}/></label>
+          <label>Duration<input required value={jobForm.duration} onChange={e=>setJobForm({...jobForm,duration:e.target.value})}/></label>
+          <label>Description<textarea required value={jobForm.description} onChange={e=>setJobForm({...jobForm,description:e.target.value})}/></label>
+          <label>Eligibility criteria<textarea required value={jobForm.eligibility} onChange={e=>setJobForm({...jobForm,eligibility:e.target.value})}/></label>
+          <label>Required skills (comma-separated)<input value={jobForm.skills} onChange={e=>setJobForm({...jobForm,skills:e.target.value})}/></label>
+          <label>Application deadline<input required type="date" min={new Date().toISOString().slice(0,10)} value={jobForm.deadline} onChange={e=>setJobForm({...jobForm,deadline:e.target.value})}/></label>
+          <button className="apply-button" disabled={busy}>Publish internship</button>
+        </form>
+      </section>}
+      {(user?.role === "recruiter" || user?.role === "admin") && <section className="applications-section"><div className="section-heading"><div><h2>Applications for my internships</h2><p>Review candidate details and update selection status.</p></div><span className="result-count">{applications.length} applications</span></div>
+        {applications.length === 0 ? <div className="empty-state"><p>No applications have been received for your internships.</p></div> :
+          <div className="application-list">{applications.map(app => <article className="application-card" key={app._id}>
+            <div className="application-card-heading"><div><h3>{app.student?.fullName}</h3><p>{app.student?.email} · {app.student?.srn || "No SRN"}</p><b>{app.internship?.title} — {app.internship?.company}</b></div><span className={`status-badge status-${app.status.toLowerCase()}`}>{app.status}</span></div>
+            <p><b>Resume:</b> <a href={app.resumeUrl} target="_blank" rel="noreferrer">{app.resumeName} (open)</a></p>{app.coverLetter && <p><b>Cover letter:</b> {app.coverLetter}</p>}
+            <label htmlFor={`status-${app._id}`}>Update status</label><select id={`status-${app._id}`} value={app.status} onChange={e => updateStatus(app._id,e.target.value)}>{STATUSES.map(status => <option key={status}>{status}</option>)}</select>
+          </article>)}</div>}
+      </section>}
+    </main>
+    <footer className="footer"><p>Online Internship &amp; Placement Preparation Portal · Team 12</p><p>Internship Listings &amp; Applications Module</p></footer>
+  </div>;
 }
 
 export default App;
