@@ -7,6 +7,7 @@ export default function AdminDashboard({ token }) {
   const [internships, setInternships] = useState([]);
   const [recruiters, setRecruiters] = useState([]);
   const [users, setUsers] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [listingForm, setListingForm] = useState({ recruiter: "", title: "", company: "", location: "", stipend: "", duration: "", description: "", eligibility: "", skills: "", deadline: "" });
@@ -34,12 +35,14 @@ export default function AdminDashboard({ token }) {
         request("/internships"),
         request("/recruiters/pending"),
         request("/users"),
+        request("/audit-logs?limit=30"),
       ]);
-      const [stats, jobs, pending, accountList] = results;
+      const [stats, jobs, pending, accountList, audit] = results;
       if (stats.status === "fulfilled") setAnalytics(stats.value);
       if (jobs.status === "fulfilled") setInternships(jobs.value.internships || []);
       if (pending.status === "fulfilled") setRecruiters(pending.value.recruiters || []);
       if (accountList.status === "fulfilled") setUsers(accountList.value.users || []);
+      if (audit.status === "fulfilled") setAuditLogs(audit.value.logs || []);
       const failures = results.filter((item) => item.status === "rejected");
       if (failures.length) setError(failures.map((item) => item.reason.message).join(" · "));
     } catch (err) {
@@ -113,6 +116,7 @@ export default function AdminDashboard({ token }) {
           <div className="admin-stat-grid">
             <Stat label="Students" value={analytics.students ?? "—"} />
             <Stat label="Recruiters" value={analytics.recruiters ?? "—"} />
+            <Stat label="Pending recruiter reviews" value={analytics.pendingRecruiters ?? "—"} />
             <Stat label="Active internships" value={analytics.activeInternships ?? "—"} />
             <Stat label="Applications" value={analytics.applications ?? "—"} />
             <Stat label="Placements" value={analytics.placements?.reduce((sum, item) => sum + item.placements, 0) ?? "—"} />
@@ -131,7 +135,10 @@ export default function AdminDashboard({ token }) {
         <h2 id="recruiter-title">Recruiter approval requests</h2>
         {recruiters.length === 0 ? <p>No pending recruiters, or the User model is not integrated.</p> : recruiters.map((person) => (
           <div className="admin-row" key={person._id}>
-            <span><strong>{person.fullName || person.email || person._id}</strong><small>{person.email}</small></span>
+              <span><strong>{person.fullName || person.email || person._id}</strong><small>{person.email} · {person.companyName || "Organization not provided"}</small>
+                {(person.companyWebsite || person.companyEmail) && <small>{person.companyEmail || ""}{person.companyEmail && person.companyWebsite ? " · " : ""}{person.companyWebsite && <a href={person.companyWebsite} target="_blank" rel="noreferrer">Organization website</a>}</small>}
+                <small>Email status: {person.isEmailVerified ? "Verified" : "Not verified"}</small>
+              </span>
             <span className="admin-actions">
               <button type="button" onClick={() => decideRecruiter(person._id, "approved")}>Approve</button>
               <button type="button" className="secondary" onClick={() => decideRecruiter(person._id, "rejected")}>Reject</button>
@@ -171,6 +178,15 @@ export default function AdminDashboard({ token }) {
             </span>
           </div>
         ))}
+      </section>
+
+      <section className="admin-panel" aria-labelledby="audit-title">
+        <h2 id="audit-title">Recent security and admin activity</h2>
+        {auditLogs.length === 0 ? <p>No audit events are available.</p> : <div className="admin-audit-list">{auditLogs.map((entry) => <article className="admin-audit-row" key={entry._id}>
+          <div><strong>{entry.event}</strong><small>{entry.actor?.fullName || entry.actor?.email || "System"}{entry.subject ? ` · ${entry.subject.fullName || entry.subject.email || entry.subject.role || "Account"}` : ""}</small></div>
+          <span className="admin-status">{entry.outcome || "recorded"}</span>
+          <time dateTime={entry.occurredAt}>{new Date(entry.occurredAt).toLocaleString()}</time>
+        </article>)}</div>}
       </section>
     </main>
   );

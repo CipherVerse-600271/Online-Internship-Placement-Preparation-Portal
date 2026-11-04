@@ -27,7 +27,7 @@ router.get("/student", protect, authorize("student"), async (req, res) => {
     const skillGaps = skills.filter(skill => !answeredSkills.has(skill.toLowerCase()));
     const testHistory = tests.map(test => ({ ...test, timeTakenSeconds: test.submittedAt && test.startedAt
       ? Math.max(0, Math.round((new Date(test.submittedAt) - new Date(test.startedAt)) / 1000)) : null }));
-    res.json({ applications, tests: testHistory, recommendations, skillGaps });
+    res.json({ applications, tests: testHistory, recommendations, skillGaps, skills });
   } catch (error) {
     console.error("Student dashboard error:", error);
     res.status(500).json({ message: "Unable to retrieve student dashboard." });

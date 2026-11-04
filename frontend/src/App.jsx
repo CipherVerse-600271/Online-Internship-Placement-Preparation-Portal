@@ -6,6 +6,8 @@ import { API_BASE } from "./apiBase.js";
 
 const API = API_BASE;
 const STATUSES = ["Pending", "Shortlisted", "Rejected", "Accepted"];
+const TODAY_UTC = new Date().toISOString().slice(0, 10);
+const MIN_DEADLINE_UTC = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -18,7 +20,8 @@ function App() {
   const [selected, setSelected] = useState(null);
   const [authMode, setAuthMode] = useState("login");
   const [authRole, setAuthRole] = useState("student");
-  const [auth, setAuth] = useState({ fullName: "", email: "", srn: "", password: "" });
+  const [auth, setAuth] = useState({ fullName: "", email: "", srn: "", password: "", companyName: "", companyWebsite: "", companyEmail: "" });
+  const [resetForm, setResetForm] = useState({ email: "", otp: "", newPassword: "" });
   const [resumeUrl, setResumeUrl] = useState("");
   const [resumeName, setResumeName] = useState("");
   const [coverLetter, setCoverLetter] = useState("");
@@ -44,7 +47,13 @@ function App() {
       }
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.message || data.errors?.[0]?.msg || "Request failed.");
+    if (!response.ok) {
+      if (response.status === 401 && token) {
+        localStorage.removeItem("portalToken"); localStorage.removeItem("portalUser");
+        setToken(""); setUser(null); setNotice("Your session has expired. Please sign in again.");
+      }
+      throw new Error(data.message || data.errors?.[0]?.msg || "Request failed.");
+    }
     return data;
   }, [token]);
 
@@ -73,6 +82,7 @@ function App() {
         setApplications(mine);
         setNotifications(alerts);
         setStudentDashboard(progress);
+        setStudentSkills((progress.skills || []).join(", "));
       } else if (user.role === "recruiter" || user.role === "admin") {
         setApplications(await request("/applications/recruiter"));
       }
@@ -88,16 +98,45 @@ function App() {
       const endpoint = authMode === "login"
         ? "/auth/login"
         : authRole === "student" ? "/auth/register/student" : "/auth/register/recruiter";
-      const payload = authMode === "login" ? { email: auth.email, password: auth.password } : auth;
+      const payload = authMode === "login" ? { email: auth.email, password: auth.password } : authRole === "student"
+        ? { fullName: auth.fullName, email: auth.email, srn: auth.srn, password: auth.password }
+        : { fullName: auth.fullName, email: auth.email, password: auth.password, companyName: auth.companyName, companyWebsite: auth.companyWebsite, companyEmail: auth.companyEmail };
       const data = await request(endpoint, { method: "POST", body: JSON.stringify(payload) });
       if (authMode === "register") {
-        setNotice(data.message + (authRole === "recruiter" ? " An administrator must approve the account before login." : ""));
+        setNotice(data.message + (authRole === "recruiter" ? " Verify your email and await administrator approval before signing in." : " Check your inbox for the verification link, then sign in."));
       } else {
         localStorage.setItem("portalToken", data.token);
         localStorage.setItem("portalUser", JSON.stringify(data.user));
         setToken(data.token); setUser(data.user); setNotice("Welcome, " + data.user.fullName + "!");
       }
     } catch (error) { setNotice(error.message); }
+    finally { setBusy(false); }
+  }
+
+  async function requestPasswordReset(event) {
+    event.preventDefault(); setBusy(true); setNotice("");
+    try {
+      const result = await request("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email: resetForm.email }) });
+      setNotice(result.message + " Check your inbox for the six-digit code.");
+      setAuthMode("reset");
+    } catch (error) { setNotice(error.message); }
+    finally { setBusy(false); }
+  }
+
+  async function resetPassword(event) {
+    event.preventDefault(); setBusy(true); setNotice("");
+    try {
+      const result = await request("/auth/reset-password", { method: "POST", body: JSON.stringify({ email: resetForm.email, otp: resetForm.otp, newPassword: resetForm.newPassword }) });
+      setNotice(result.message + ". You can now sign in with your new password.");
+      setAuthMode("login"); setAuth({ ...auth, email: resetForm.email, password: "" }); setResetForm({ ...resetForm, otp: "", newPassword: "" });
+    } catch (error) { setNotice(error.message); }
+    finally { setBusy(false); }
+  }
+
+  async function resendVerification() {
+    setBusy(true); setNotice("");
+    try { const result = await request("/auth/resend-verification", { method: "POST", body: JSON.stringify({ email: auth.email }) }); setNotice(result.message); }
+    catch (error) { setNotice(error.message); }
     finally { setBusy(false); }
   }
 
@@ -136,30 +175,54 @@ function App() {
   }
 
   const filtered = internships;
+  const isSelectedOpen = selected && (!selected.deadline || selected.deadline.slice(0, 10) > TODAY_UTC);
 
   return <div className="app">
     <header className="hero"><div className="hero-content">
-      <p className="eyebrow">YOUR CAREER STARTS HERE</p><h1>Online Internship Portal</h1>
+      <p className="eyebrow">YOUR CAREER STARTS HERE</p><h1>Launch your next opportunity</h1>
       <p>Discover opportunities, apply, and track every application.</p>
       <div className="portal-account">{user ? <><span>Signed in as <b>{user.fullName}</b> ({user.role})</span><button onClick={logout}>Log out</button></> : <span>Sign in to apply and manage applications</span>}</div>
     </div></header>
+    {user && <nav className="portal-nav" aria-label="Portal navigation">
+      <a href="#opportunities">Internships</a>
+      {user.role === "student" && <><a href="#student-overview">My dashboard</a><a href="#my-applications">Applications</a><a href="#aptitude">Aptitude practice</a></>}
+      {user.role === "recruiter" && <><a href="#post-internship">Post an internship</a><a href="#review-applications">Applications</a></>}
+      {user.role === "admin" && <a href="#admin-dashboard">Administration</a>}
+    </nav>}
     <main className="container">
       {notice && <p className="feedback-message" role="status">{notice}</p>}
       {!user && <section className="details-panel auth-panel">
-        <h2>{authMode === "login" ? "Sign in" : "Create an account"}</h2>
-        <form onSubmit={submitAuth}>
+        <p className="eyebrow">STUDENT · RECRUITER · ADMIN</p>
+        <h2>{authMode === "login" ? "Welcome back" : authMode === "register" ? "Create your account" : authMode === "forgot" ? "Reset your password" : "Enter your reset code"}</h2>
+        {authMode === "forgot" && <form onSubmit={requestPasswordReset}>
+          <p className="form-note">We’ll email a six-digit code if an account matches that address. The code expires after 10 minutes.</p>
+          <label htmlFor="reset-email">Email</label><input id="reset-email" type="email" autoComplete="email" required value={resetForm.email} onChange={e => setResetForm({...resetForm,email:e.target.value})}/>
+          <button className="apply-button" disabled={busy}>{busy ? "Please wait…" : "Send reset code"}</button>
+        </form>}
+        {authMode === "reset" && <form onSubmit={resetPassword}>
+          <label htmlFor="reset-email-confirm">Email</label><input id="reset-email-confirm" type="email" autoComplete="email" required value={resetForm.email} onChange={e => setResetForm({...resetForm,email:e.target.value})}/>
+          <label htmlFor="reset-otp">Six-digit code</label><input id="reset-otp" inputMode="numeric" pattern="[0-9]{6}" maxLength="6" required value={resetForm.otp} onChange={e => setResetForm({...resetForm,otp:e.target.value.replace(/\D/g,"").slice(0,6)})}/>
+          <label htmlFor="reset-new-password">New password</label><input id="reset-new-password" type="password" autoComplete="new-password" minLength="8" required value={resetForm.newPassword} onChange={e => setResetForm({...resetForm,newPassword:e.target.value})}/>
+          <p className="form-note">Use at least 8 characters with uppercase, lowercase, and a number.</p>
+          <button className="apply-button" disabled={busy}>{busy ? "Please wait…" : "Set new password"}</button>
+        </form>}
+        {(authMode === "login" || authMode === "register") && <form onSubmit={submitAuth}>
           {authMode === "register" && <><label htmlFor="account-role">Account type</label><select id="account-role" value={authRole} onChange={e => setAuthRole(e.target.value)}><option value="student">Student</option><option value="recruiter">Recruiter</option></select>
-            <label htmlFor="account-name">Full name</label><input id="account-name" required value={auth.fullName} onChange={e => setAuth({...auth, fullName:e.target.value})}/></>}
-          <label htmlFor="account-email">Email</label><input id="account-email" type="email" required value={auth.email} onChange={e => setAuth({...auth,email:e.target.value})}/>
-          {authMode === "register" && authRole === "student" && <><label htmlFor="account-srn">SRN</label><input id="account-srn" required value={auth.srn} onChange={e => setAuth({...auth,srn:e.target.value})}/></>}
-          <label htmlFor="account-password">Password</label><input id="account-password" type="password" minLength="8" required value={auth.password} onChange={e => setAuth({...auth,password:e.target.value})}/>
+            <label htmlFor="account-name">Full name</label><input id="account-name" autoComplete="name" required minLength="2" maxLength="100" value={auth.fullName} onChange={e => setAuth({...auth, fullName:e.target.value})}/></>}
+          <label htmlFor="account-email">Email</label><input id="account-email" type="email" autoComplete="email" required value={auth.email} onChange={e => setAuth({...auth,email:e.target.value})}/>
+          {authMode === "register" && authRole === "student" && <><label htmlFor="account-srn">Student registration number (SRN)</label><input id="account-srn" required minLength="4" maxLength="30" value={auth.srn} onChange={e => setAuth({...auth,srn:e.target.value})}/><p className="form-note">Use your official PESU student email address.</p></>}
+          {authMode === "register" && authRole === "recruiter" && <><label htmlFor="company-name">Organization name</label><input id="company-name" autoComplete="organization" required minLength="2" maxLength="160" value={auth.companyName} onChange={e => setAuth({...auth,companyName:e.target.value})}/><label htmlFor="company-website">Organization website (optional)</label><input id="company-website" type="url" placeholder="https://example.com" value={auth.companyWebsite} onChange={e => setAuth({...auth,companyWebsite:e.target.value})}/><label htmlFor="company-email">Organization email (optional)</label><input id="company-email" type="email" value={auth.companyEmail} onChange={e => setAuth({...auth,companyEmail:e.target.value})}/></>}
+          <label htmlFor="account-password">Password</label><input id="account-password" type="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} minLength="8" maxLength="128" required value={auth.password} onChange={e => setAuth({...auth,password:e.target.value})}/>
+          {authMode === "register" && <p className="form-note">Use at least 8 characters with uppercase, lowercase, and a number.</p>}
           <button className="apply-button" disabled={busy}>{busy ? "Please wait..." : authMode === "login" ? "Sign in" : "Register"}</button>
-        </form>
-        <button className="details-button" onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}>{authMode === "login" ? "New here? Register" : "Already registered? Sign in"}</button>
-        <p className="form-note">Student registration uses your official PESU student email and requires email verification. Recruiter accounts require admin approval.</p>
+        </form>}
+        {authMode === "login" && <div className="auth-links"><button type="button" className="text-button" onClick={() => {setResetForm({...resetForm,email:auth.email});setAuthMode("forgot");}}>Forgot password?</button><button type="button" className="text-button" disabled={!auth.email || busy} onClick={resendVerification}>Resend verification email</button></div>}
+        {authMode === "register" && <p className="form-note">Email verification is required. Recruiter accounts also need administrator approval.</p>}
+        {(authMode === "login" || authMode === "register") && <button className="details-button auth-toggle" onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}>{authMode === "login" ? "New here? Create an account" : "Already registered? Sign in"}</button>}
+        {(authMode === "forgot" || authMode === "reset") && <button className="text-button" onClick={() => setAuthMode("login")}>Back to sign in</button>}
       </section>}
 
-      <section className="section-heading"><div><h2>Explore Internships</h2><p>Search available roles and select one to view details.</p></div><span className="result-count">{filtered.length} opportunities</span></section>
+      <section id="opportunities" className="section-heading"><div><h2>Explore Internships</h2><p>Search available roles and select one to view details.</p></div><span className="result-count">{filtered.length} opportunities</span></section>
       <section className="filters" aria-label="Filter internships"><input aria-label="Search role or company" type="search" placeholder="Search role or company..." value={search} onChange={e => setSearch(e.target.value)}/><input aria-label="Filter by skill" placeholder="Skill" value={skillFilter} onChange={e => setSkillFilter(e.target.value)}/><input aria-label="Filter by location" placeholder="Location" value={locationFilter} onChange={e => setLocationFilter(e.target.value)}/><input aria-label="Minimum stipend" type="number" min="0" placeholder="Minimum stipend" value={minStipend} onChange={e => setMinStipend(e.target.value)}/><input aria-label="Maximum stipend" type="number" min="0" placeholder="Maximum stipend" value={maxStipend} onChange={e => setMaxStipend(e.target.value)}/><input aria-label="Filter by duration" placeholder="Duration" value={durationFilter} onChange={e => setDurationFilter(e.target.value)}/><button type="button" className="details-button" onClick={() => {setSearch("");setSkillFilter("");setLocationFilter("");setMinStipend("");setMaxStipend("");setDurationFilter("");}}>Clear filters</button></section>
       <section className="internship-list">
         {filtered.map(job => <article className={selected?._id === job._id ? "internship-card selected-card" : "internship-card"} key={job._id}>
@@ -174,13 +237,14 @@ function App() {
 
       {selected && <section className="details-panel"><p className="eyebrow">INTERNSHIP DETAILS</p><h2>{selected.title}</h2><p className="company-name">{selected.company}</p>
         <p><b>Location:</b> {selected.location} · <b>Stipend:</b> ₹{selected.stipend}/month · <b>Duration:</b> {selected.duration}</p>
-        <p>{selected.description}</p><p><b>Eligibility:</b> {selected.eligibility || "Not specified"}</p><p><b>Skills:</b> {(selected.skills || []).join(", ") || "Not specified"}</p><p><b>Deadline:</b> {selected.deadline ? new Date(selected.deadline).toLocaleDateString() : "Not specified"}</p><p><b>Application status:</b> {selected.deadline && new Date(selected.deadline) < new Date() ? "Closed" : "Open"}</p>
-        {user?.role === "student" && <><hr/><h3>Submit your application</h3><form onSubmit={apply}>
-          <label>Resume link (Google Drive / portfolio URL)</label><input type="url" required placeholder="https://..." value={resumeUrl} onChange={e => setResumeUrl(e.target.value)}/>
-          <label>Resume file name</label><input required placeholder="MyResume.pdf" value={resumeName} onChange={e => setResumeName(e.target.value)}/>
-          <label>Cover letter (optional)</label><textarea rows="4" value={coverLetter} onChange={e => setCoverLetter(e.target.value)}/>
+        <p>{selected.description}</p><p><b>Eligibility:</b> {selected.eligibility || "Not specified"}</p><p><b>Skills:</b> {(selected.skills || []).join(", ") || "Not specified"}</p><p><b>Deadline:</b> {selected.deadline ? new Date(selected.deadline).toLocaleDateString() : "Not specified"}</p><p><b>Application status:</b> {isSelectedOpen ? "Open" : "Closed"}</p>
+        {user?.role === "student" && isSelectedOpen && <><hr/><h3>Submit your application</h3><form onSubmit={apply}>
+          <label htmlFor="resume-url">Resume link (Google Drive / portfolio URL)</label><input id="resume-url" type="url" required placeholder="https://..." value={resumeUrl} onChange={e => setResumeUrl(e.target.value)}/>
+          <label htmlFor="resume-name">Resume file name</label><input id="resume-name" required placeholder="MyResume.pdf" value={resumeName} onChange={e => setResumeName(e.target.value)}/>
+          <label htmlFor="cover-letter">Cover letter (optional)</label><textarea id="cover-letter" rows="4" value={coverLetter} onChange={e => setCoverLetter(e.target.value)}/>
           <button className="apply-button" disabled={busy}>Submit application</button>
         </form></>}
+        {user?.role === "student" && !isSelectedOpen && <p className="form-note">The application deadline has passed, so this listing is closed.</p>}
         {!user && <p className="form-note">Sign in as a student to apply.</p>}
       </section>}
 
@@ -191,7 +255,7 @@ function App() {
           event.preventDefault();
           try {
             const result = await request("/auth/skills", {method:"PATCH", body:JSON.stringify({skills:studentSkills.split(",").map(x=>x.trim()).filter(Boolean)})});
-            setNotice(result.message); await loadDashboard();
+            setNotice(result.message); setStudentSkills((result.user?.skills || []).join(", ")); await loadDashboard();
           } catch(error) { setNotice(error.message); }
         }}>
           <label>Skills (comma-separated)<input value={studentSkills} onChange={e=>setStudentSkills(e.target.value)} placeholder="JavaScript, React, Python"/></label>
@@ -199,18 +263,21 @@ function App() {
         </form>
       </section>}
       {user?.role === "student" && <>
-        <section className="applications-section" aria-labelledby="progress-heading">
+        <section id="student-overview" className="applications-section" aria-labelledby="progress-heading">
           <h2 id="progress-heading">Progress and recommendations</h2>
+          <div className="status-summary" aria-label="Application status summary">
+            {["Pending", "Shortlisted", "Accepted", "Rejected"].map(status => <article className="status-summary-card" key={status}><span>{status}</span><strong>{applications.filter(item => item.status === status).length}</strong></article>)}
+          </div>
           <p>{studentDashboard?.tests?.length || 0} completed aptitude tests</p>
           {studentDashboard?.tests?.map((item, index) => <p key={`${item._id}-${index}`}>{item.result?.topic || item.topic}: {item.result?.score ?? 0}/{item.result?.totalQuestions ?? 0} ({item.result?.percentage ?? 0}%) · {item.timeTakenSeconds ?? 0}s</p>)}
           <h3>Recommended internships</h3>
           {studentDashboard?.recommendations?.length ? studentDashboard.recommendations.map(job => <p key={job._id}><b>{job.title}</b> — {job.company} · {(job.skills || []).join(", ")}</p>) : <p>Add saved skills to receive matching internship recommendations.</p>}
           {studentDashboard?.skillGaps?.length > 0 && <p>Skills without a current internship match: {studentDashboard.skillGaps.join(", ")}</p>}
         </section>
-        <AptitudeTests />
+        <div id="aptitude"><AptitudeTests /></div>
       </>}
-      {user?.role === "admin" && <AdminDashboard token={token} />}
-      {user?.role === "student" && <section className="applications-section"><div className="section-heading"><div><h2>My Applications</h2><p>Your latest saved application statuses.</p></div><span className="result-count">{applications.length} submitted</span></div>
+      {user?.role === "admin" && <div id="admin-dashboard"><AdminDashboard token={token} /></div>}
+      {user?.role === "student" && <section id="my-applications" className="applications-section"><div className="section-heading"><div><h2>My Applications</h2><p>Your latest saved application statuses.</p></div><span className="result-count">{applications.length} submitted</span></div>
         {applications.length === 0 ? <div className="empty-state"><h3>No applications yet</h3><p>Choose an internship and submit an application.</p></div> :
           <div className="application-list">{applications.map(app => <article className="application-card" key={app._id}>
             <div className="application-card-heading"><div><h3>{app.internship?.title}</h3><p className="company-name">{app.internship?.company}</p></div><span className={`status-badge status-${app.status.toLowerCase()}`}>{app.status}</span></div>
@@ -222,7 +289,7 @@ function App() {
         </article>)}
       </section>}
 
-      {user?.role === "recruiter" && <section className="details-panel">
+      {user?.role === "recruiter" && <section id="post-internship" className="details-panel">
         <h2>Post an internship</h2>
         <form onSubmit={async event => {
           event.preventDefault(); setBusy(true); setNotice("");
@@ -241,11 +308,11 @@ function App() {
           <label>Description<textarea required value={jobForm.description} onChange={e=>setJobForm({...jobForm,description:e.target.value})}/></label>
           <label>Eligibility criteria<textarea required value={jobForm.eligibility} onChange={e=>setJobForm({...jobForm,eligibility:e.target.value})}/></label>
           <label>Required skills (comma-separated)<input value={jobForm.skills} onChange={e=>setJobForm({...jobForm,skills:e.target.value})}/></label>
-          <label>Application deadline<input required type="date" min={new Date().toISOString().slice(0,10)} value={jobForm.deadline} onChange={e=>setJobForm({...jobForm,deadline:e.target.value})}/></label>
+          <label>Application deadline<input required type="date" min={MIN_DEADLINE_UTC} value={jobForm.deadline} onChange={e=>setJobForm({...jobForm,deadline:e.target.value})}/></label>
           <button className="apply-button" disabled={busy}>Publish internship</button>
         </form>
       </section>}
-      {(user?.role === "recruiter" || user?.role === "admin") && <section className="applications-section"><div className="section-heading"><div><h2>Applications for my internships</h2><p>Review candidate details and update selection status.</p></div><span className="result-count">{applications.length} applications</span></div>
+      {(user?.role === "recruiter" || user?.role === "admin") && <section id="review-applications" className="applications-section"><div className="section-heading"><div><h2>Applications for my internships</h2><p>Review candidate details and update selection status.</p></div><span className="result-count">{applications.length} applications</span></div>
         {applications.length === 0 ? <div className="empty-state"><p>No applications have been received for your internships.</p></div> :
           <div className="application-list">{applications.map(app => <article className="application-card" key={app._id}>
             <div className="application-card-heading"><div><h3>{app.student?.fullName}</h3><p>{app.student?.email} · {app.student?.srn || "No SRN"}</p><b>{app.internship?.title} — {app.internship?.company}</b></div><span className={`status-badge status-${app.status.toLowerCase()}`}>{app.status}</span></div>
