@@ -51,7 +51,7 @@ router.get("/audit-logs", async (req, res) => {
     const requested = Number.parseInt(req.query.limit, 10);
     const limit = Number.isInteger(requested) ? Math.min(Math.max(requested, 1), 100) : 50;
     const logs = await AuditLog.find().populate("actor", "fullName email role").populate("subject", "fullName email role")
-      .sort({ createdAt: -1 }).limit(limit).lean();
+      .sort({ occurredAt: -1 }).limit(limit).lean();
     res.json({ logs, limit });
   } catch (error) {
     console.error("Admin audit logs error:", error);

@@ -18,6 +18,11 @@
 .admin-status { color:#176b43; font-size:.8rem; font-weight:700; }
 .admin-status.off { color:#a33b3b; }
 .admin-alert { padding:.85rem 1rem; border-radius:.6rem; background:#fff0ed; color:#8a2d20; }
+.admin-row a { color:#275a9e; }
+.admin-audit-list { display:grid; }
+.admin-audit-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:1rem; padding:.8rem 0; border-top:1px solid #edf0f5; }
+.admin-audit-row small { display:block; margin-top:.25rem; color:#667085; }
+.admin-audit-row time { color:#667085; font-size:.82rem; }
 .admin-listing-form { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.75rem; margin:1rem 0; }
 .admin-listing-form label { display:grid; gap:.3rem; color:#344054; font-size:.9rem; }
 .admin-listing-form input { min-width:0; padding:.6rem; border:1px solid #cbd3df; border-radius:.45rem; font:inherit; }
@@ -25,4 +30,5 @@
 @media (max-width:640px) {
   .admin-header,.admin-row { align-items:flex-start; flex-direction:column; }
   .admin-actions { width:100%; }
+  .admin-audit-row { grid-template-columns:1fr; gap:.25rem; }
 }
