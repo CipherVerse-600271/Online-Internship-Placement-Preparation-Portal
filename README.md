@@ -117,9 +117,12 @@ Configure the required environment variables, including:
 
 ```env
 PORT=5000
-MONGO_URI=your_mongodb_connection_string
+MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_strong_secret_key
 JWT_EXPIRES_IN=1d
+EMAIL_USER=your_smtp_account
+EMAIL_APP_PASSWORD=your_smtp_app_password
+API_BASE_URL=https://your-api-host
 ```
 
 Use the variable names and configuration expected by the current backend implementation. Configure any additional required variables for email integration as that feature is implemented.

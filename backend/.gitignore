@@ -1,9 +1,11 @@
-<<<<<<< HEAD
+# Dependencies
 node_modules/
-.env
-coverage/
-=======
 
-node_modules/
+# Environment variables and secrets
 .env
->>>>>>> origin/main
+
+# Test coverage
+coverage/
+
+# Temporary admin setup script
+createAdmin.js

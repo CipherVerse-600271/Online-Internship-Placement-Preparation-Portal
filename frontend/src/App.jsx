@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
+import AptitudeTests from "./AptitudeTests.jsx";
+import AdminDashboard from "./AdminDashboard.jsx";
+import { API_BASE } from "./apiBase.js";
 
-const API = "http://localhost:5000/api";
+const API = API_BASE;
 const STATUSES = ["Pending", "Shortlisted", "Rejected", "Accepted"];
 
 function App() {
@@ -29,6 +32,7 @@ function App() {
   const [busy, setBusy] = useState(false);
   const [jobForm, setJobForm] = useState({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",deadline:""});
   const [studentSkills, setStudentSkills] = useState("");
+  const [studentDashboard, setStudentDashboard] = useState(null);
 
   const request = useCallback(async (path, options = {}) => {
     const response = await fetch(`${API}${path}`, {
@@ -63,11 +67,12 @@ function App() {
     if (!token || !user) return;
     try {
       if (user.role === "student") {
-        const [mine, alerts] = await Promise.all([
-          request("/applications/mine"), request("/notifications")
+        const [mine, alerts, progress] = await Promise.all([
+          request("/applications/mine"), request("/notifications"), request("/dashboard/student")
         ]);
         setApplications(mine);
         setNotifications(alerts);
+        setStudentDashboard(progress);
       } else if (user.role === "recruiter" || user.role === "admin") {
         setApplications(await request("/applications/recruiter"));
       }
@@ -143,11 +148,11 @@ function App() {
       {!user && <section className="details-panel auth-panel">
         <h2>{authMode === "login" ? "Sign in" : "Create an account"}</h2>
         <form onSubmit={submitAuth}>
-          {authMode === "register" && <><label>Account type</label><select value={authRole} onChange={e => setAuthRole(e.target.value)}><option value="student">Student</option><option value="recruiter">Recruiter</option></select>
-            <label>Full name</label><input required value={auth.fullName} onChange={e => setAuth({...auth, fullName:e.target.value})}/></>}
-          <label>Email</label><input type="email" required value={auth.email} onChange={e => setAuth({...auth,email:e.target.value})}/>
-          {authMode === "register" && authRole === "student" && <><label>SRN</label><input required value={auth.srn} onChange={e => setAuth({...auth,srn:e.target.value})}/></>}
-          <label>Password</label><input type="password" minLength="8" required value={auth.password} onChange={e => setAuth({...auth,password:e.target.value})}/>
+          {authMode === "register" && <><label htmlFor="account-role">Account type</label><select id="account-role" value={authRole} onChange={e => setAuthRole(e.target.value)}><option value="student">Student</option><option value="recruiter">Recruiter</option></select>
+            <label htmlFor="account-name">Full name</label><input id="account-name" required value={auth.fullName} onChange={e => setAuth({...auth, fullName:e.target.value})}/></>}
+          <label htmlFor="account-email">Email</label><input id="account-email" type="email" required value={auth.email} onChange={e => setAuth({...auth,email:e.target.value})}/>
+          {authMode === "register" && authRole === "student" && <><label htmlFor="account-srn">SRN</label><input id="account-srn" required value={auth.srn} onChange={e => setAuth({...auth,srn:e.target.value})}/></>}
+          <label htmlFor="account-password">Password</label><input id="account-password" type="password" minLength="8" required value={auth.password} onChange={e => setAuth({...auth,password:e.target.value})}/>
           <button className="apply-button" disabled={busy}>{busy ? "Please wait..." : authMode === "login" ? "Sign in" : "Register"}</button>
         </form>
         <button className="details-button" onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}>{authMode === "login" ? "New here? Register" : "Already registered? Sign in"}</button>
@@ -155,7 +160,7 @@ function App() {
       </section>}
 
       <section className="section-heading"><div><h2>Explore Internships</h2><p>Search available roles and select one to view details.</p></div><span className="result-count">{filtered.length} opportunities</span></section>
-      <section className="filters"><input type="search" placeholder="Search role or company..." value={search} onChange={e => setSearch(e.target.value)}/><input placeholder="Skill" value={skillFilter} onChange={e => setSkillFilter(e.target.value)}/><input placeholder="Location" value={locationFilter} onChange={e => setLocationFilter(e.target.value)}/><input type="number" min="0" placeholder="Minimum stipend" value={minStipend} onChange={e => setMinStipend(e.target.value)}/><input type="number" min="0" placeholder="Maximum stipend" value={maxStipend} onChange={e => setMaxStipend(e.target.value)}/><input placeholder="Duration" value={durationFilter} onChange={e => setDurationFilter(e.target.value)}/><button type="button" className="details-button" onClick={() => {setSearch("");setSkillFilter("");setLocationFilter("");setMinStipend("");setMaxStipend("");setDurationFilter("");}}>Clear filters</button></section>
+      <section className="filters" aria-label="Filter internships"><input aria-label="Search role or company" type="search" placeholder="Search role or company..." value={search} onChange={e => setSearch(e.target.value)}/><input aria-label="Filter by skill" placeholder="Skill" value={skillFilter} onChange={e => setSkillFilter(e.target.value)}/><input aria-label="Filter by location" placeholder="Location" value={locationFilter} onChange={e => setLocationFilter(e.target.value)}/><input aria-label="Minimum stipend" type="number" min="0" placeholder="Minimum stipend" value={minStipend} onChange={e => setMinStipend(e.target.value)}/><input aria-label="Maximum stipend" type="number" min="0" placeholder="Maximum stipend" value={maxStipend} onChange={e => setMaxStipend(e.target.value)}/><input aria-label="Filter by duration" placeholder="Duration" value={durationFilter} onChange={e => setDurationFilter(e.target.value)}/><button type="button" className="details-button" onClick={() => {setSearch("");setSkillFilter("");setLocationFilter("");setMinStipend("");setMaxStipend("");setDurationFilter("");}}>Clear filters</button></section>
       <section className="internship-list">
         {filtered.map(job => <article className={selected?._id === job._id ? "internship-card selected-card" : "internship-card"} key={job._id}>
           <div className="card-top"><div className="company-icon">{job.company?.[0] || "I"}</div><span className="location-tag">{job.location}</span></div>
@@ -186,13 +191,25 @@ function App() {
           event.preventDefault();
           try {
             const result = await request("/auth/skills", {method:"PATCH", body:JSON.stringify({skills:studentSkills.split(",").map(x=>x.trim()).filter(Boolean)})});
-            setNotice(result.message);
+            setNotice(result.message); await loadDashboard();
           } catch(error) { setNotice(error.message); }
         }}>
           <label>Skills (comma-separated)<input value={studentSkills} onChange={e=>setStudentSkills(e.target.value)} placeholder="JavaScript, React, Python"/></label>
           <button className="apply-button">Save skills</button>
         </form>
       </section>}
+      {user?.role === "student" && <>
+        <section className="applications-section" aria-labelledby="progress-heading">
+          <h2 id="progress-heading">Progress and recommendations</h2>
+          <p>{studentDashboard?.tests?.length || 0} completed aptitude tests</p>
+          {studentDashboard?.tests?.map((item, index) => <p key={`${item._id}-${index}`}>{item.result?.topic || item.topic}: {item.result?.score ?? 0}/{item.result?.totalQuestions ?? 0} ({item.result?.percentage ?? 0}%) · {item.timeTakenSeconds ?? 0}s</p>)}
+          <h3>Recommended internships</h3>
+          {studentDashboard?.recommendations?.length ? studentDashboard.recommendations.map(job => <p key={job._id}><b>{job.title}</b> — {job.company} · {(job.skills || []).join(", ")}</p>) : <p>Add saved skills to receive matching internship recommendations.</p>}
+          {studentDashboard?.skillGaps?.length > 0 && <p>Skills without a current internship match: {studentDashboard.skillGaps.join(", ")}</p>}
+        </section>
+        <AptitudeTests />
+      </>}
+      {user?.role === "admin" && <AdminDashboard token={token} />}
       {user?.role === "student" && <section className="applications-section"><div className="section-heading"><div><h2>My Applications</h2><p>Your latest saved application statuses.</p></div><span className="result-count">{applications.length} submitted</span></div>
         {applications.length === 0 ? <div className="empty-state"><h3>No applications yet</h3><p>Choose an internship and submit an application.</p></div> :
           <div className="application-list">{applications.map(app => <article className="application-card" key={app._id}>
