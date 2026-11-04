@@ -22,7 +22,7 @@ const errorsFor = (req, res) => {
 router.post(
   "/register/student",
   authLimiter,
-  [body("fullName").trim().isLength({ min: 2, max: 100 }), body("email").isEmail().normalizeEmail().matches(/^[a-zA-Z0-9._%+-]+@stu\.pes\.edu$/).withMessage("Please use your official PESU student email address"), body("srn").trim().isLength({ min: 4, max: 30 }), passwordRules()],
+  [body("fullName").trim().isLength({ min: 2, max: 100 }), body("email").isEmail().normalizeEmail(), body("srn").trim().isLength({ min: 4, max: 30 }), passwordRules()],
   async (req, res) => {
     try {
       if (errorsFor(req, res)) return;

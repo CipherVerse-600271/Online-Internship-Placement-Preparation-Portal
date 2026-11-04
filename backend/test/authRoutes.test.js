@@ -48,12 +48,12 @@ after(async () => { await new Promise((resolve) => server.close(resolve)); });
 const request = (path, method = "GET", body, token) => fetch(`${base}${path}`, { method, headers: { ...(body ? { "content-type": "application/json" } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: body ? JSON.stringify(body) : undefined });
 const hash = (value) => crypto.createHash("sha256").update(value).digest("hex");
 
-test("student registration requires official email, sends verification, gates login, then issues role-bound JWT", async () => {
-  const invalid = await request("/api/auth/register/student", "POST", { fullName: "Test Student", email: "student@example.com", srn: "PES1UG00", password: "StrongPass1" });
+test("student registration accepts personal email, sends verification, gates login, then issues role-bound JWT", async () => {
+  const invalid = await request("/api/auth/register/student", "POST", { fullName: "Test Student", email: "not-an-email", srn: "PES1UG00", password: "StrongPass1" });
   assert.equal(invalid.status, 400);
-  const registered = await request("/api/auth/register/student", "POST", { fullName: "Test Student", email: "student@stu.pes.edu", srn: "PES1UG00", password: "StrongPass1" });
+  const registered = await request("/api/auth/register/student", "POST", { fullName: "Test Student", email: "student@gmail.com", srn: "PES1UG00", password: "StrongPass1" });
   assert.equal(registered.status, 201); assert.equal(sent.verification.length, 1);
-  const user = users.find((entry) => entry.email === "student@stu.pes.edu");
+  const user = users.find((entry) => entry.email === "student@gmail.com");
   assert.notEqual(user.password, "StrongPass1"); assert.equal(await user.comparePassword("StrongPass1"), true);
   assert.equal((await request("/api/auth/login", "POST", { email: user.email, password: "StrongPass1" })).status, 403);
   assert.equal((await request(`/api/auth/verify-email/${sent.verification[0].token}`)).status, 200);
@@ -85,7 +85,7 @@ test("recruiter registration requires company data; only an admin can approve/re
 });
 
 test("password reset OTP is hashed, expires, is single use, and changes password", async () => {
-  const user = users.find((entry) => entry.email === "student@stu.pes.edu");
+  const user = users.find((entry) => entry.email === "student@gmail.com");
   assert.equal((await request("/api/auth/forgot-password", "POST", { email: user.email })).status, 200);
   const otp = sent.otp.at(-1).otp; assert.equal(user.resetOTP, hash(otp));
   const expiry = user.resetOTPExpiry; user.resetOTPExpiry = new Date(Date.now() - 1);

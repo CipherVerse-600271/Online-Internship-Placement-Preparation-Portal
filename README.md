@@ -19,7 +19,7 @@ The system is designed for three primary user roles:
 ## Key Features
 
 ### Authentication and Security
-- Student registration with college email verification.
+- Student registration with email verification at any valid, user-accessible email address.
 - Recruiter registration with administrator verification.
 - Secure login using JSON Web Tokens (JWT).
 - Password reset using time-limited, single-use OTPs.
