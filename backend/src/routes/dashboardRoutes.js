@@ -27,7 +27,24 @@ router.get("/student", protect, authorize("student"), async (req, res) => {
     const skillGaps = skills.filter(skill => !answeredSkills.has(skill.toLowerCase()));
     const testHistory = tests.map(test => ({ ...test, timeTakenSeconds: test.submittedAt && test.startedAt
       ? Math.max(0, Math.round((new Date(test.submittedAt) - new Date(test.startedAt)) / 1000)) : null }));
-    res.json({ applications, tests: testHistory, recommendations, skillGaps, skills });
+    const topicStats = ["quantitative", "logical", "verbal"].map(topic => {
+      const attempts = testHistory.filter(test => test.topic === topic && Number.isFinite(Number(test.result?.percentage)));
+      const averagePercentage = attempts.length
+        ? Number((attempts.reduce((sum, test) => sum + Number(test.result.percentage), 0) / attempts.length).toFixed(2))
+        : null;
+      return {
+        topic,
+        attempts: attempts.length,
+        averagePercentage,
+        latestPercentage: attempts.length ? Number(attempts[0].result.percentage) : null
+      };
+    });
+    const completedAttempts = testHistory.length;
+    const overallAverage = completedAttempts
+      ? Number((testHistory.reduce((sum, test) => sum + Number(test.result?.percentage || 0), 0) / completedAttempts).toFixed(2))
+      : null;
+    const testPerformance = { completedAttempts, overallAverage, byTopic: topicStats };
+    res.json({ applications, tests: testHistory, testPerformance, recommendations, skillGaps, skills });
   } catch (error) {
     console.error("Student dashboard error:", error);
     res.status(500).json({ message: "Unable to retrieve student dashboard." });
