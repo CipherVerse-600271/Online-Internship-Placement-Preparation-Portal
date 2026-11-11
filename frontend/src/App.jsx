@@ -328,7 +328,7 @@ function App() {
             {studentDashboard?.skillGaps?.length > 0 && <p>Skills without a current internship match: {studentDashboard.skillGaps.join(", ")}</p>}
           </section>
         </section>
-        <div id="aptitude"><AptitudeTests /></div>
+        <div id="aptitude"><AptitudeTests onCompleted={loadDashboard} /></div>
       </>}
       {user?.role === "admin" && <div id="admin-dashboard"><AdminDashboard token={token} /></div>}
       {user?.role === "student" && <section id="my-applications" className="applications-section"><div className="section-heading"><div><h2>My Applications</h2><p>Your latest saved application statuses.</p></div><span className="result-count">{applications.length} submitted</span></div>
