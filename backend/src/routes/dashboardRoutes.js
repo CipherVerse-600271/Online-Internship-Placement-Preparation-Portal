@@ -21,8 +21,18 @@ router.get("/student", protect, authorize("student"), async (req, res) => {
     const filter = { isActive: true, deadline: { $gte: new Date() } };
     if (appliedIds.length) filter._id = { $nin: appliedIds };
     if (skills.length) filter.skills = { $in: skills.map(skill => new RegExp(`^${skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")) };
-    const recommendations = await Internship.find(filter).sort({ createdAt: -1 }).limit(20)
+    const recommendationCandidates = await Internship.find(filter)
       .select("title company location skills stipend duration deadline").lean();
+    const normalizedSkills = skills.map(skill => skill.toLowerCase());
+    const recommendations = recommendationCandidates.map(internship => {
+      const matchedSkills = (internship.skills || []).filter(skill =>
+        normalizedSkills.includes(String(skill).trim().toLowerCase()));
+      const requiredSkills = (internship.skills || []).length;
+      const matchScore = requiredSkills
+        ? Math.round((matchedSkills.length / requiredSkills) * 100)
+        : 0;
+      return { ...internship, matchedSkills, matchScore };
+    }).sort((a, b) => b.matchScore - a.matchScore || a.title.localeCompare(b.title)).slice(0, 20);
     const answeredSkills = new Set(recommendations.flatMap(item => item.skills || []).map(s => String(s).toLowerCase()));
     const skillGaps = skills.filter(skill => !answeredSkills.has(skill.toLowerCase()));
     const testHistory = tests.map(test => ({ ...test, timeTakenSeconds: test.submittedAt && test.startedAt
