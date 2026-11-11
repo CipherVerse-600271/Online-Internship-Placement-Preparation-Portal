@@ -268,8 +268,33 @@ function App() {
           <div className="status-summary" aria-label="Application status summary">
             {["Pending", "Shortlisted", "Accepted", "Rejected"].map(status => <article className="status-summary-card" key={status}><span>{status}</span><strong>{applications.filter(item => item.status === status).length}</strong></article>)}
           </div>
-          <p>{studentDashboard?.tests?.length || 0} completed aptitude tests</p>
-          {studentDashboard?.tests?.map((item, index) => <p key={`${item._id}-${index}`}>{item.result?.topic || item.topic}: {item.result?.score ?? 0}/{item.result?.totalQuestions ?? 0} ({item.result?.percentage ?? 0}%) · {item.timeTakenSeconds ?? 0}s</p>)}
+          <section className="attempt-history" aria-labelledby="attempt-history-heading">
+            <div className="section-heading"><div><h3 id="attempt-history-heading">Aptitude test attempt history</h3><p>{studentDashboard?.tests?.length || 0} completed attempts · latest first</p></div></div>
+            {studentDashboard?.tests?.length ? (
+              <>
+                {studentDashboard.tests.length > 1 && (() => {
+                  const difference = Number((Number(studentDashboard.tests[0].result?.percentage ?? 0) - Number(studentDashboard.tests[1].result?.percentage ?? 0)).toFixed(2));
+                  return <p className="form-note" role="status">Latest attempt compared with the previous attempt: {difference > 0 ? "+" : ""}{difference} percentage points{difference > 0 ? " improvement." : difference < 0 ? " decrease." : " (no change)."}</p>;
+                })()}
+                <div className="application-list">
+                  {studentDashboard.tests.map((item, index) => {
+                    const older = studentDashboard.tests[index + 1];
+                    const difference = older ? Number((Number(item.result?.percentage ?? 0) - Number(older.result?.percentage ?? 0)).toFixed(2)) : null;
+                    return <article className="application-card" key={item._id || index}>
+                      <div className="application-card-heading">
+                        <div><h4>{item.result?.topic || item.topic}</h4><p className="company-name">{item.startedAt ? new Date(item.startedAt).toLocaleString() : "Date unavailable"}</p></div>
+                        <span className="status-badge status-accepted">{item.status === "expired" ? "Time expired" : "Submitted"}</span>
+                      </div>
+                      <p><b>Score:</b> {item.result?.score ?? 0}/{item.result?.totalQuestions ?? 0} ({item.result?.percentage ?? 0}%)</p>
+                      <p><b>Correct:</b> {item.result?.correct ?? 0} · <b>Incorrect:</b> {item.result?.incorrect ?? 0} · <b>Unanswered:</b> {item.result?.unanswered ?? 0}</p>
+                      <p><b>Time taken:</b> {item.timeTakenSeconds == null ? "Unavailable" : `${Math.floor(item.timeTakenSeconds / 60)}m ${item.timeTakenSeconds % 60}s`}</p>
+                      {difference != null && <p className="form-note">Compared with the next older attempt: {difference > 0 ? "+" : ""}{difference} percentage points.</p>}
+                    </article>;
+                  })}
+                </div>
+              </>
+            ) : <div className="empty-state"><h4>No completed aptitude tests yet</h4><p>Complete a timed aptitude test to see your scores and performance history here.</p></div>}
+          </section>
           <h3>Recommended internships</h3>
           {studentDashboard?.recommendations?.length ? studentDashboard.recommendations.map(job => <p key={job._id}><b>{job.title}</b> — {job.company} · {(job.skills || []).join(", ")}</p>) : <p>Add saved skills to receive matching internship recommendations.</p>}
           {studentDashboard?.skillGaps?.length > 0 && <p>Skills without a current internship match: {studentDashboard.skillGaps.join(", ")}</p>}
