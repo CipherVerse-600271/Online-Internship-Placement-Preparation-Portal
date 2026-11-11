@@ -6,7 +6,7 @@ function readToken() {
   return localStorage.getItem("portalToken") || localStorage.getItem("token") || localStorage.getItem("authToken") || "";
 }
 
-function AptitudeTests() {
+function AptitudeTests({ onCompleted }) {
   const [token] = useState(readToken);
   const [topics, setTopics] = useState([]);
   const [topic, setTopic] = useState("");
@@ -105,6 +105,7 @@ function AptitudeTests() {
       setNotice(automatic || submission.status === "expired"
         ? "Time is up. Your test has ended automatically."
         : "Your test has been submitted successfully.");
+      if (typeof onCompleted === "function") await onCompleted();
     } catch (err) {
       setError(err.message);
     } finally {
