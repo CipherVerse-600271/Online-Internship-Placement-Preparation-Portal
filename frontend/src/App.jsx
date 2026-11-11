@@ -295,9 +295,38 @@ function App() {
               </>
             ) : <div className="empty-state"><h4>No completed aptitude tests yet</h4><p>Complete a timed aptitude test to see your scores and performance history here.</p></div>}
           </section>
-          <h3>Recommended internships</h3>
-          {studentDashboard?.recommendations?.length ? studentDashboard.recommendations.map(job => <p key={job._id}><b>{job.title}</b> — {job.company} · {(job.skills || []).join(", ")}</p>) : <p>Add saved skills to receive matching internship recommendations.</p>}
-          {studentDashboard?.skillGaps?.length > 0 && <p>Skills without a current internship match: {studentDashboard.skillGaps.join(", ")}</p>}
+          <section aria-labelledby="aptitude-summary-heading">
+            <h3 id="aptitude-summary-heading">Aptitude performance summary</h3>
+            <p>{studentDashboard?.testPerformance?.completedAttempts ?? 0} completed tests · Overall average: {studentDashboard?.testPerformance?.overallAverage == null ? "Not available yet" : `${studentDashboard.testPerformance.overallAverage}%`}</p>
+            <div className="status-summary">
+              {(studentDashboard?.testPerformance?.byTopic || []).map(item => (
+                <article className="status-summary-card" key={item.topic}>
+                  <span>{item.topic.charAt(0).toUpperCase() + item.topic.slice(1)}</span>
+                  <strong>{item.averagePercentage == null ? "—" : `${item.averagePercentage}%`}</strong>
+                  <small>{item.attempts} attempt(s)</small>
+                </article>
+              ))}
+            </div>
+          </section>
+          <section aria-labelledby="recommendations-heading">
+            <h3 id="recommendations-heading">Recommended internships</h3>
+            {studentDashboard?.recommendations?.length ? (
+              <div className="application-list">
+                {studentDashboard.recommendations.map(job => (
+                  <article className="application-card" key={job._id}>
+                    <div className="application-card-heading">
+                      <div><h4>{job.title}</h4><p className="company-name">{job.company} · {job.location}</p></div>
+                      <span className="status-badge status-accepted">{job.matchScore ?? 0}% skill match</span>
+                    </div>
+                    <p><b>Matched skills:</b> {(job.matchedSkills || []).join(", ") || "No direct skill match identified"}</p>
+                    <p><b>Required skills:</b> {(job.skills || []).join(", ") || "Not specified"}</p>
+                    <p><b>Stipend:</b> {job.stipend == null ? "Not specified" : job.stipend} · <b>Duration:</b> {job.duration || "Not specified"}</p>
+                  </article>
+                ))}
+              </div>
+            ) : <p>No matching internships are available right now. Update your profile skills or check again later.</p>}
+            {studentDashboard?.skillGaps?.length > 0 && <p>Skills without a current internship match: {studentDashboard.skillGaps.join(", ")}</p>}
+          </section>
         </section>
         <div id="aptitude"><AptitudeTests /></div>
       </>}
