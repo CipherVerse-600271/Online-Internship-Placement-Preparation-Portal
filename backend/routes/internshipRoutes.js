@@ -36,7 +36,9 @@ router.post("/",protect,authorize("recruiter"),async(req,res)=>{
   if(!Number.isFinite(Number(stipend))||Number(stipend)<0)return res.status(400).json({message:"Stipend must be non-negative."});
   const due=new Date(deadline);if(Number.isNaN(due.getTime())||due<=new Date())return res.status(400).json({message:"Deadline must be a future date."});
   const skills=skillsOf(req.body.skills);
-  const job=await Internship.create({title,company,location,stipend:Number(stipend),duration,description,eligibility,deadline:due,skills,recruiter:req.user._id});
+  const validTopics=["quantitative","logical","verbal"];
+  const aptitudeTopics=[...new Set(skillsOf(req.body.aptitudeTopics).map(topic=>topic.toLowerCase()).filter(topic=>validTopics.includes(topic)))];
+  const job=await Internship.create({title,company,location,stipend:Number(stipend),duration,description,eligibility,deadline:due,skills,aptitudeTopics,recruiter:req.user._id});
   if(skills.length){
    const students=await User.find({role:"student",skills:{$in:skills.map(x=>new RegExp("^"+x+"$","i"))}}).select("_id");
    if(students.length)await Notification.insertMany(students.map(s=>({student:s._id,internship:job._id,category:"internship_match",message:"New internship match: "+job.title+" at "+job.company+". Matching skills: "+skills.join(", ")})));
