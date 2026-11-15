@@ -33,7 +33,7 @@ function App() {
   const [durationFilter, setDurationFilter] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [jobForm, setJobForm] = useState({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",deadline:""});
+  const [jobForm, setJobForm] = useState({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",aptitudeTopics:"",deadline:""});
   const [studentSkills, setStudentSkills] = useState("");
   const [studentDashboard, setStudentDashboard] = useState(null);
 
@@ -298,6 +298,7 @@ function App() {
           <section aria-labelledby="aptitude-summary-heading">
             <h3 id="aptitude-summary-heading">Aptitude performance summary</h3>
             <p>{studentDashboard?.testPerformance?.completedAttempts ?? 0} completed tests · Overall average: {studentDashboard?.testPerformance?.overallAverage == null ? "Not available yet" : `${studentDashboard.testPerformance.overallAverage}%`}</p>
+            {studentDashboard?.aptitudeSkillGaps?.length > 0 ? <p className="form-note">Areas to improve (below 60% average): {studentDashboard.aptitudeSkillGaps.map(item => `${item.topic} (${item.averagePercentage}%)`).join(", ")}.</p> : studentDashboard?.testPerformance?.completedAttempts > 0 ? <p className="form-note">No aptitude area is currently below the 60% improvement threshold.</p> : <p className="form-note">Complete an aptitude test to identify areas that need improvement.</p>}
             <div className="status-summary">
               {(studentDashboard?.testPerformance?.byTopic || []).map(item => (
                 <article className="status-summary-card" key={item.topic}>
@@ -316,8 +317,10 @@ function App() {
                   <article className="application-card" key={job._id}>
                     <div className="application-card-heading">
                       <div><h4>{job.title}</h4><p className="company-name">{job.company} · {job.location}</p></div>
-                      <span className="status-badge status-accepted">{job.matchScore ?? 0}% skill match</span>
+                      <span className="status-badge status-accepted">{job.recommendationScore ?? job.matchScore ?? 0}% recommendation score</span>
                     </div>
+                    <p><b>Skill match:</b> {job.matchScore ?? 0}% · <b>Aptitude performance:</b> {job.aptitudePerformanceScore == null ? "Not available" : `${job.aptitudePerformanceScore}%`}</p>
+                    {job.aptitudeTopics?.length > 0 && <p><b>Relevant aptitude areas:</b> {job.aptitudeTopics.join(", ")}</p>}
                     <p><b>Matched skills:</b> {(job.matchedSkills || []).join(", ") || "No direct skill match identified"}</p>
                     <p><b>Required skills:</b> {(job.skills || []).join(", ") || "Not specified"}</p>
                     <p><b>Stipend:</b> {job.stipend == null ? "Not specified" : job.stipend} · <b>Duration:</b> {job.duration || "Not specified"}</p>
@@ -348,9 +351,9 @@ function App() {
         <form onSubmit={async event => {
           event.preventDefault(); setBusy(true); setNotice("");
           try {
-            const payload = {...jobForm, stipend:Number(jobForm.stipend), skills:jobForm.skills.split(",").map(x=>x.trim()).filter(Boolean)};
+            const payload = {...jobForm, stipend:Number(jobForm.stipend), skills:jobForm.skills.split(",").map(x=>x.trim()).filter(Boolean), aptitudeTopics:jobForm.aptitudeTopics.split(",").map(x=>x.trim().toLowerCase()).filter(x=>["quantitative","logical","verbal"].includes(x))};
             const result = await request("/internships", {method:"POST", body:JSON.stringify(payload)});
-            setNotice(result.message); setJobForm({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",deadline:""});
+            setNotice(result.message); setJobForm({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",aptitudeTopics:"",deadline:""});
             await loadInternships();
           } catch(error) { setNotice(error.message); } finally { setBusy(false); }
         }}>
@@ -362,6 +365,7 @@ function App() {
           <label>Description<textarea required value={jobForm.description} onChange={e=>setJobForm({...jobForm,description:e.target.value})}/></label>
           <label>Eligibility criteria<textarea required value={jobForm.eligibility} onChange={e=>setJobForm({...jobForm,eligibility:e.target.value})}/></label>
           <label>Required skills (comma-separated)<input value={jobForm.skills} onChange={e=>setJobForm({...jobForm,skills:e.target.value})}/></label>
+          <label>Relevant aptitude topics (optional: quantitative, logical, verbal; comma-separated)<input value={jobForm.aptitudeTopics} onChange={e=>setJobForm({...jobForm,aptitudeTopics:e.target.value})} placeholder="quantitative, logical"/></label>
           <label>Application deadline<input required type="date" min={MIN_DEADLINE_UTC} value={jobForm.deadline} onChange={e=>setJobForm({...jobForm,deadline:e.target.value})}/></label>
           <button className="apply-button" disabled={busy}>Publish internship</button>
         </form>
