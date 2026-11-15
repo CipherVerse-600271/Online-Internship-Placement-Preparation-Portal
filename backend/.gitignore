@@ -1,3 +1,11 @@
+# Dependencies
 node_modules/
+
+# Environment variables and secrets
 .env
+
+# Test coverage
 coverage/
+
+# Temporary admin setup script
+createAdmin.js
