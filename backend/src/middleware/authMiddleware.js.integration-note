@@ -1,0 +1,5 @@
+Integration required (do not overwrite blindly):
+1. Add near the top: const { authorize } = require("../utils/authorization");
+2. Remove the existing local `const authorize = (...roles) => { ... }` implementation.
+3. Keep the existing `module.exports = { protect, authorize };` line.
+This delegates to the tested helper without changing the protect() authentication flow.

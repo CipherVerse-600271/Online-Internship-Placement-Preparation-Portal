@@ -19,7 +19,7 @@ The system is designed for three primary user roles:
 ## Key Features
 
 ### Authentication and Security
-- Student registration with college email verification.
+- Student registration with email verification at any valid, user-accessible email address.
 - Recruiter registration with administrator verification.
 - Secure login using JSON Web Tokens (JWT).
 - Password reset using time-limited, single-use OTPs.
@@ -122,6 +122,9 @@ EMAIL_MODE=mock
 MONGODB_URI=your_local_test_database_connection_string
 JWT_SECRET=your_strong_secret_key
 JWT_EXPIRES_IN=1d
+EMAIL_USER=your_smtp_account
+EMAIL_APP_PASSWORD=your_smtp_app_password
+API_BASE_URL=https://your-api-host
 ```
 
 Use the variable names and configuration expected by the current backend implementation. Configure any additional required variables for email integration as that feature is implemented.
@@ -223,8 +226,8 @@ Automated checks should be configured through GitHub Actions as the project deve
 
 The team is organizing work into two development sprints:
 
-- **Sprint 1:** October 19–23, 2026.
-- **Sprint 2:** October 26–30, 2026.
+- **Sprint 1:** October 19â€“23, 2026.
+- **Sprint 2:** October 26â€“30, 2026.
 
 Development tasks are tracked through GitHub Issues. The team will use story-point estimates, assignees, sprint assignments, Pull Requests, and demonstrations to monitor progress.
 
@@ -234,19 +237,19 @@ The backend foundation currently includes the following structure:
 
 ```text
 Online-Internship-Placement-Preparation-Portal/
-├── backend/
-│   ├── src/
-│   │   └── server.js
-│   ├── config/
-│   ├── middleware/
-│   ├── models/
-│   ├── routes/
-│   ├── utils/
-│   ├── .env.example
-│   ├── package.json
-│   └── package-lock.json
-├── .gitignore
-└── README.md
+â”œâ”€â”€ backend/
+â”‚   â”œâ”€â”€ src/
+â”‚   â”‚   â””â”€â”€ server.js
+â”‚   â”œâ”€â”€ config/
+â”‚   â”œâ”€â”€ middleware/
+â”‚   â”œâ”€â”€ models/
+â”‚   â”œâ”€â”€ routes/
+â”‚   â”œâ”€â”€ utils/
+â”‚   â”œâ”€â”€ .env.example
+â”‚   â”œâ”€â”€ package.json
+â”‚   â””â”€â”€ package-lock.json
+â”œâ”€â”€ .gitignore
+â””â”€â”€ README.md
 ```
 
 Additional frontend, testing, documentation, and deployment directories may be added as implementation progresses.
@@ -272,5 +275,5 @@ No license has been specified yet. Usage and redistribution terms should be adde
 
 ---
 
-**Online Internship & Placement Preparation Portal**  
+**Online Internship & Placement Preparation Portal**
 *Connecting students, recruiters, and placement preparation in one platform.*

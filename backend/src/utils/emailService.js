@@ -1,4 +1,3 @@
-﻿
 const nodemailer = require("nodemailer");
 const { randomUUID } = require("crypto");
 
@@ -13,7 +12,6 @@ const mockTransporter = {
     };
     mockMailbox.push(captured);
     console.log("Mock email captured locally.");
-
     return {
       messageId: captured.messageId,
       accepted: [mailOptions.to],
@@ -28,64 +26,37 @@ const clearCapturedEmails = () => mockMailbox.splice(0, mockMailbox.length);
 
 const getEmailMode = () => {
   const mode = String(process.env.EMAIL_MODE || "gmail").trim().toLowerCase();
-  if (!["gmail", "mock"].includes(mode)) {
-    throw new Error("EMAIL_MODE must be either 'gmail' or 'mock'.");
-  }
+  if (!["gmail", "mock"].includes(mode)) throw new Error("EMAIL_MODE must be either 'gmail' or 'mock'.");
   if (mode === "mock" && process.env.NODE_ENV === "production") {
     throw new Error("Mock email mode is unavailable when NODE_ENV is production.");
   }
   return mode;
 };
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_APP_PASSWORD
-  }
-});
-
-const secondaryTransporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER_2,
-    pass: process.env.EMAIL_APP_PASSWORD_2
-  }
-});
+const createTransporter = (user, pass) => {
+  if (!user || !pass) throw new Error("Email service is not configured");
+  return nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
+};
 
 const sendWithFallback = async mailOptions => {
-  if (getEmailMode() === "mock") {
-    return mockTransporter.sendMail(mailOptions);
-  }
+  if (getEmailMode() === "mock") return mockTransporter.sendMail(mailOptions);
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent using primary Gmail:", info.messageId);
-    return info;
+    return await createTransporter(process.env.EMAIL_USER, process.env.EMAIL_APP_PASSWORD).sendMail(mailOptions);
   } catch (primaryError) {
-    console.error("Primary Gmail failed:", primaryError.message);
+    if (!process.env.EMAIL_USER_2 || !process.env.EMAIL_APP_PASSWORD_2) throw primaryError;
     const secondaryOptions = {
       ...mailOptions,
       from: `"Internship Placement Portal" <${process.env.EMAIL_USER_2}>`
     };
-    const info = await secondaryTransporter.sendMail(secondaryOptions);
-    console.log("Email sent using secondary Gmail:", info.messageId);
-    return info;
+    return createTransporter(process.env.EMAIL_USER_2, process.env.EMAIL_APP_PASSWORD_2).sendMail(secondaryOptions);
   }
 };
 
-// Send student email verification link
 const sendVerificationEmail = async (email, token) => {
-  const verificationLink =
-    `http://localhost:5000/api/auth/verify-email/${token}`;
-
-  // Development-only verification link for local testing
-  if (process.env.NODE_ENV === "development") {
-    console.log("\n========== EMAIL VERIFICATION ==========");
-    console.log("========================================\n");
-  }
-
-  const mailOptions = {
+  const baseUrl = (process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, "");
+  const verificationLink = `${baseUrl}/api/auth/verify-email/${encodeURIComponent(token)}`;
+  return sendWithFallback({
     from: `"Internship Placement Portal" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: "Verify Your Internship Portal Account",
@@ -97,26 +68,25 @@ const sendVerificationEmail = async (email, token) => {
       <p>This verification link expires in 10 minutes.</p>
       <p>If you did not create this account, please ignore this email.</p>
     `
-  };
-
-  console.log("Attempting to send verification email.");
-
-  return sendWithFallback(mailOptions);
+  });
 };
 
-// Send an email when a recruiter changes a student's application status.
+const sendPasswordResetEmail = async (email, otp) => {
+  return sendWithFallback({
+    from: `"Internship Placement Portal" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "Your password reset code",
+    text: `Your password reset code is ${otp}. It expires in 10 minutes. If you did not request this, ignore this message.`,
+    html: `<p>Your password reset code is <strong>${otp}</strong>.</p><p>It expires in 10 minutes. If you did not request this, ignore this message.</p>`
+  });
+};
+
 const sendApplicationStatusEmail = async (email, studentName, internshipTitle, status) => {
   if (!email) throw new Error("Student email address is missing.");
-
   const safe = value => String(value ?? "").replace(/[&<>"']/g, character => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   })[character]);
-
-  const mailOptions = {
+  return sendWithFallback({
     from: `"Internship Placement Portal" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: `Application update: ${status}`,
@@ -131,19 +101,12 @@ const sendApplicationStatusEmail = async (email, studentName, internshipTitle, s
         <p>Regards,<br/>Internship Placement Portal Team</p>
       </div>
     `
-  };
-
-  const info = await sendWithFallback(mailOptions);
-  console.log("Application status email sent:", {
-    messageId: info.messageId,
-    accepted: info.accepted,
-    rejected: info.rejected
   });
-  return info;
 };
 
 module.exports = {
   sendVerificationEmail,
+  sendPasswordResetEmail,
   sendApplicationStatusEmail,
   getCapturedEmails,
   clearCapturedEmails
