@@ -64,6 +64,17 @@ const authorize = (...roles) => {
       });
     }
 
+    if (
+      req.user.role === "recruiter" &&
+      (!req.user.isEmailVerified || req.user.recruiterStatus !== "approved")
+    ) {
+      return res.status(403).json({
+        message: !req.user.isEmailVerified
+          ? "Please verify your email before accessing recruiter resources."
+          : "Recruiter account is awaiting admin approval."
+      });
+    }
+
     next();
   };
 };

@@ -1,6 +1,6 @@
 # Acceptance Criteria and UAT Record
 
-**Product Owner / Placement Coordinator:** Bhavani Shahapur  
+**Product Owner / Placement Coordinator:** Bhavani Shahapur
 **Source baseline:** SRS v1.0, Section 6; Software Test Plan v1.0, Sections 9 and 13.
 
 ## Acceptance baseline
@@ -41,14 +41,14 @@ Complete one row per scenario. Attach screenshots, API responses, test logs, or 
 
 ## Product Owner release recommendation
 
-Build / commit SHA:  
-Environment:  
-UAT execution dates:  
-Outstanding defects and accepted deviations:  
-Decision: **Not reviewed / Ready for release / Not ready for release**  
-Product Owner (Bhavani Shahapur):  
-Date:  
-QA Lead sign-off (Benita Wilson):  
+Build / commit SHA:
+Environment:
+UAT execution dates:
+Outstanding defects and accepted deviations:
+Decision: **Not reviewed / Ready for release / Not ready for release**
+Product Owner (Bhavani Shahapur):
+Date:
+QA Lead sign-off (Benita Wilson):
 Date:
 
 *Do not fill in a release approval until the test evidence and exit criteria have actually been reviewed.*

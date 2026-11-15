@@ -1,8 +1,8 @@
 # Sprint 2 UAT and Product Owner Review Record
 
-**Product:** Online Internship & Placement Preparation Portal  
-**Product Owner / Placement Coordinator:** Bhavani Shahapur (PES2UG24CS114)  
-**Baseline:** SRS v1.0; Software Test Plan v1.0  
+**Product:** Online Internship & Placement Preparation Portal
+**Product Owner / Placement Coordinator:** Bhavani Shahapur (PES2UG24CS114)
+**Baseline:** SRS v1.0; Software Test Plan v1.0
 **Record status:** Prepared for review; live UAT not executed in the supplied environment.
 
 ## 1. Product Owner review approach
@@ -41,11 +41,11 @@ For each scenario, attach a screenshot, API response, test log, or demo timestam
 
 ## 5. Product Owner decision
 
-**Current evidence-based recommendation:** Not ready for release / acceptance pending completion of test evidence.  
-**Build commit SHA reviewed:** Not available from supplied ZIP metadata.  
-**UAT environment/date:** Local development environment; admin approval screenshot supplied 15 November 2026. Exact browser/build commit not captured.  
-**Open validation blockers:** ENV-001, ENV-002, ENV-003 in `SPRINT2_DEFECT_REGISTER.md`.  
-**Product Owner signature/date:** Pending actual review and approval.  
+**Current evidence-based recommendation:** Not ready for release / acceptance pending completion of test evidence.
+**Build commit SHA reviewed:** Not available from supplied ZIP metadata.
+**UAT environment/date:** Local development environment; admin approval screenshot supplied 15 November 2026. Exact browser/build commit not captured.
+**Open validation blockers:** ENV-001, ENV-002, ENV-003 in `SPRINT2_DEFECT_REGISTER.md`.
+**Product Owner signature/date:** Pending actual review and approval.
 **QA Lead signature/date:** Pending QA Lead review.
 
 No signature or approval has been inserted on behalf of a team member.

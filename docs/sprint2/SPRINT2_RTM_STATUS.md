@@ -1,6 +1,6 @@
 # Sprint 2 Requirements Traceability Matrix Status
 
-**Baseline:** SRS v1.0 and Software Test Plan v1.0.  
+**Baseline:** SRS v1.0 and Software Test Plan v1.0.
 **Status rule:** A test-case mapping is not proof of execution. All rows below are `Not evidenced in supplied execution`; update only after the named test owner executes the case and attaches evidence.
 
 ## Functional requirements

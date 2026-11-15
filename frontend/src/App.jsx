@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import AptitudeTests from "./AptitudeTests.jsx";
 import AdminDashboard from "./AdminDashboard.jsx";
@@ -6,10 +6,17 @@ import { API_BASE } from "./apiBase.js";
 
 const API = API_BASE;
 const STATUSES = ["Pending", "Shortlisted", "Rejected", "Accepted"];
-const TODAY_UTC = new Date().toISOString().slice(0, 10);
+const isDeadlineOpen = (deadline, todayUtc) => {
+  const value = new Date(deadline);
+  return !Number.isNaN(value.getTime()) &&
+    value.toISOString().slice(0, 10) >= todayUtc;
+};
+const formatDeadline = deadline =>
+  new Date(deadline).toLocaleDateString(undefined, { timeZone: "UTC" });
 const MIN_DEADLINE_UTC = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 function App() {
+  const [todayUtc, setTodayUtc] = useState(() => new Date().toISOString().slice(0, 10));
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem("portalUser") || "null"); } catch { return null; }
   });
@@ -17,6 +24,9 @@ function App() {
   const [internships, setInternships] = useState([]);
   const [applications, setApplications] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [pendingRecruiters, setPendingRecruiters] = useState([]);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
+  const [localVerificationLinks, setLocalVerificationLinks] = useState({});
   const [selected, setSelected] = useState(null);
   const [authMode, setAuthMode] = useState("login");
   const [authRole, setAuthRole] = useState("student");
@@ -33,7 +43,19 @@ function App() {
   const [durationFilter, setDurationFilter] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [jobForm, setJobForm] = useState({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",deadline:""});
+  const [jobForm, setJobForm] = useState({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",deadline:"",applyLink:""});
+  const internshipAttempts = useRef(null);
+  if (internshipAttempts.current === null) {
+    let savedAttempts = [];
+    try {
+      const stored = JSON.parse(sessionStorage.getItem("internshipPostAttempts") || "[]");
+      if (Array.isArray(stored)) savedAttempts = stored.filter(entry => Array.isArray(entry) && entry.length === 2 && typeof entry[0] === "string" && typeof entry[1] === "string");
+    } catch {}
+    internshipAttempts.current = new Map(savedAttempts);
+  }
+  const persistInternshipAttempts = () => {
+    try { sessionStorage.setItem("internshipPostAttempts", JSON.stringify([...internshipAttempts.current.entries()])); } catch {}
+  };
   const [studentSkills, setStudentSkills] = useState("");
   const [studentDashboard, setStudentDashboard] = useState(null);
 
@@ -76,14 +98,23 @@ function App() {
     if (!token || !user) return;
     try {
       if (user.role === "student") {
-        const [mine, alerts, progress] = await Promise.all([
-          request("/applications/mine"), request("/notifications"), request("/dashboard/student")
+        const [mine, alerts, profile] = await Promise.all([
+          request("/applications/mine"),
+          request("/notifications"),
+          request("/auth/skills")
         ]);
         setApplications(mine);
         setNotifications(alerts);
-        setStudentDashboard(progress);
-        setStudentSkills((progress.skills || []).join(", "));
-      } else if (user.role === "recruiter" || user.role === "admin") {
+        setStudentSkills((profile.skills || []).join(", "));
+        try { setStudentDashboard(await request("/dashboard/student")); } catch { setStudentDashboard(null); }
+      } else if (user.role === "admin") {
+        const [recruiterApplications, recruiters] = await Promise.all([
+          request("/applications/recruiter"),
+          request("/admin/recruiters?status=pending")
+        ]);
+        setApplications(recruiterApplications);
+        setPendingRecruiters(recruiters);
+      } else if (user.role === "recruiter") {
         setApplications(await request("/applications/recruiter"));
       }
     } catch (error) { setNotice(error.message); }
@@ -91,6 +122,10 @@ function App() {
 
   useEffect(() => { loadInternships(); }, [loadInternships]);
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setTodayUtc(new Date().toISOString().slice(0, 10)), 60000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function submitAuth(event) {
     event.preventDefault(); setBusy(true); setNotice("");
@@ -103,13 +138,30 @@ function App() {
         : { fullName: auth.fullName, email: auth.email, password: auth.password, companyName: auth.companyName, companyWebsite: auth.companyWebsite, companyEmail: auth.companyEmail };
       const data = await request(endpoint, { method: "POST", body: JSON.stringify(payload) });
       if (authMode === "register") {
-        setNotice(data.message + (authRole === "recruiter" ? " Verify your email and await administrator approval before signing in." : " Check your inbox for the verification link, then sign in."));
+        setNotice(data.message + (authRole === "recruiter" ? " Verify your email and await administrator approval before signing in." : " Students can sign in without email verification."));
+        if (authRole === "recruiter") {
+          setPendingVerificationEmail(auth.email.trim());
+          setAuthMode("login");
+        } else {
+          setAuthMode("login");
+          setAuth({ fullName: "", email: auth.email, srn: "", password: "" });
+        }
       } else {
         localStorage.setItem("portalToken", data.token);
         localStorage.setItem("portalUser", JSON.stringify(data.user));
         setToken(data.token); setUser(data.user); setNotice("Welcome, " + data.user.fullName + "!");
       }
-    } catch (error) { setNotice(error.message); }
+    } catch (error) {
+      if (
+        authMode === "register" &&
+        authRole === "recruiter" &&
+        error.message.toLowerCase().includes("account created")
+      ) {
+        setPendingVerificationEmail(auth.email.trim());
+        setAuthMode("login");
+      }
+      setNotice(error.message);
+    }
     finally { setBusy(false); }
   }
 
@@ -135,14 +187,23 @@ function App() {
 
   async function resendVerification() {
     setBusy(true); setNotice("");
-    try { const result = await request("/auth/resend-verification", { method: "POST", body: JSON.stringify({ email: auth.email }) }); setNotice(result.message); }
+    try { const result = await request("/auth/resend-verification", { method: "POST", body: JSON.stringify({ email: pendingVerificationEmail || auth.email }) }); setNotice(result.message); }
     catch (error) { setNotice(error.message); }
+    finally { setBusy(false); }
+  }
+
+  async function saveSkills(event) {
+    event.preventDefault(); setBusy(true);
+    try {
+      const result = await request("/auth/skills", { method: "PATCH", body: JSON.stringify({ skills: studentSkills.split(",").map(value => value.trim()).filter(Boolean) }) });
+      setStudentSkills((result.user?.skills || []).join(", ")); setNotice(result.message); await loadDashboard();
+    } catch (error) { setNotice(error.message); }
     finally { setBusy(false); }
   }
 
   function logout() {
     localStorage.removeItem("portalToken"); localStorage.removeItem("portalUser");
-    setToken(""); setUser(null); setApplications([]); setNotifications([]);
+    setToken(""); setUser(null); setApplications([]); setNotifications([]); setLocalVerificationLinks({});
     setNotice("You have been logged out.");
   }
 
@@ -161,12 +222,40 @@ function App() {
 
   async function updateStatus(id, status) {
     try {
-      await request(`/applications/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
-      setNotice("Application status updated. The student has been notified.");
+      const result = await request(`/applications/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
+      setNotice(result.message);
       await loadDashboard();
     } catch (error) { setNotice(error.message); }
   }
 
+  async function reviewRecruiter(id, status) {
+    setBusy(true);
+    try {
+      const result = await request(`/admin/recruiters/${id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status })
+      });
+      setNotice(result.message);
+      await loadDashboard();
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function retrieveLocalVerificationLink(id) {
+    setBusy(true);
+    try {
+      const result = await request("/admin/recruiters/" + id + "/verification-link");
+      setLocalVerificationLinks(current => ({ ...current, [id]: result }));
+      setNotice("Local verification link retrieved. It expires at " + new Date(result.expiresAt).toLocaleString() + ".");
+    } catch (error) {
+      setNotice(error.message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function markRead(id) {
     try {
       await request(`/notifications/${id}/read`, { method: "PATCH", body: "{}" });
@@ -174,8 +263,36 @@ function App() {
     } catch (error) { setNotice(error.message); }
   }
 
+  async function openNotification(item) {
+    try {
+      if (!item.internship) {
+        setNotice("This notification does not have linked internship details.");
+      } else {
+        const internship = await request(`/internships/${item.internship}`);
+        setSelected(internship);
+        setNotice("Internship details opened successfully.");
+        window.setTimeout(() => {
+          document.getElementById("internship-details")?.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+        }, 100);
+      }
+
+      if (!item.read) {
+        await request(`/notifications/${item._id}/read`, {
+          method: "PATCH",
+          body: "{}"
+        });
+        await loadDashboard();
+      }
+    } catch (error) {
+      setNotice(error.message);
+    }
+  }
+
   const filtered = internships;
-  const isSelectedOpen = selected && (!selected.deadline || selected.deadline.slice(0, 10) > TODAY_UTC);
+  const isSelectedOpen = selected && isDeadlineOpen(selected.deadline, todayUtc);
 
   return <div className="app">
     <header className="hero"><div className="hero-content">
@@ -210,14 +327,14 @@ function App() {
           {authMode === "register" && <><label htmlFor="account-role">Account type</label><select id="account-role" value={authRole} onChange={e => setAuthRole(e.target.value)}><option value="student">Student</option><option value="recruiter">Recruiter</option></select>
             <label htmlFor="account-name">Full name</label><input id="account-name" autoComplete="name" required minLength="2" maxLength="100" value={auth.fullName} onChange={e => setAuth({...auth, fullName:e.target.value})}/></>}
           <label htmlFor="account-email">Email</label><input id="account-email" type="email" autoComplete="email" required value={auth.email} onChange={e => setAuth({...auth,email:e.target.value})}/>
-          {authMode === "register" && authRole === "student" && <><label htmlFor="account-srn">Student registration number (SRN)</label><input id="account-srn" required minLength="4" maxLength="30" value={auth.srn} onChange={e => setAuth({...auth,srn:e.target.value})}/><p className="form-note">Use an email address you can access so you can complete verification.</p></>}
+          {authMode === "register" && authRole === "student" && <><label htmlFor="account-srn">Student registration number (SRN)</label><input id="account-srn" required minLength="4" maxLength="30" value={auth.srn} onChange={e => setAuth({...auth,srn:e.target.value})}/></>}
           {authMode === "register" && authRole === "recruiter" && <><label htmlFor="company-name">Organization name</label><input id="company-name" autoComplete="organization" required minLength="2" maxLength="160" value={auth.companyName} onChange={e => setAuth({...auth,companyName:e.target.value})}/><label htmlFor="company-website">Organization website (optional)</label><input id="company-website" type="url" placeholder="https://example.com" value={auth.companyWebsite} onChange={e => setAuth({...auth,companyWebsite:e.target.value})}/><label htmlFor="company-email">Organization email (optional)</label><input id="company-email" type="email" value={auth.companyEmail} onChange={e => setAuth({...auth,companyEmail:e.target.value})}/></>}
           <label htmlFor="account-password">Password</label><input id="account-password" type="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} minLength="8" maxLength="128" required value={auth.password} onChange={e => setAuth({...auth,password:e.target.value})}/>
           {authMode === "register" && <p className="form-note">Use at least 8 characters with uppercase, lowercase, and a number.</p>}
           <button className="apply-button" disabled={busy}>{busy ? "Please wait..." : authMode === "login" ? "Sign in" : "Register"}</button>
         </form>}
-        {authMode === "login" && <div className="auth-links"><button type="button" className="text-button" onClick={() => {setResetForm({...resetForm,email:auth.email});setAuthMode("forgot");}}>Forgot password?</button><button type="button" className="text-button" disabled={!auth.email || busy} onClick={resendVerification}>Resend verification email</button></div>}
-        {authMode === "register" && <p className="form-note">Email verification is required. Recruiter accounts also need administrator approval.</p>}
+        {authMode === "login" && <div className="auth-links"><button type="button" className="text-button" onClick={() => {setResetForm({...resetForm,email:auth.email});setAuthMode("forgot");}}>Forgot password?</button>{pendingVerificationEmail && <button type="button" className="text-button" disabled={busy} onClick={resendVerification}>Resend recruiter verification email</button>}</div>}
+        {authMode === "register" && <p className="form-note">Please use any valid email address. Students can register with Gmail, Yahoo, Outlook, PESU, or any other valid provider. Student email verification is not required. Recruiters must verify their email and receive administrator approval before login.</p>}
         {(authMode === "login" || authMode === "register") && <button className="details-button auth-toggle" onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}>{authMode === "login" ? "New here? Create an account" : "Already registered? Sign in"}</button>}
         {(authMode === "forgot" || authMode === "reset") && <button className="text-button" onClick={() => setAuthMode("login")}>Back to sign in</button>}
       </section>}
@@ -235,9 +352,10 @@ function App() {
         {filtered.length === 0 && <div className="empty-state">No internships match your search.</div>}
       </section>
 
-      {selected && <section className="details-panel"><p className="eyebrow">INTERNSHIP DETAILS</p><h2>{selected.title}</h2><p className="company-name">{selected.company}</p>
+      {selected && <section className="details-panel" id="internship-details"><p className="eyebrow">INTERNSHIP DETAILS</p><h2>{selected.title}</h2><p className="company-name">{selected.company}</p>
         <p><b>Location:</b> {selected.location} · <b>Stipend:</b> ₹{selected.stipend}/month · <b>Duration:</b> {selected.duration}</p>
-        <p>{selected.description}</p><p><b>Eligibility:</b> {selected.eligibility || "Not specified"}</p><p><b>Skills:</b> {(selected.skills || []).join(", ") || "Not specified"}</p><p><b>Deadline:</b> {selected.deadline ? new Date(selected.deadline).toLocaleDateString() : "Not specified"}</p><p><b>Application status:</b> {isSelectedOpen ? "Open" : "Closed"}</p>
+        <p>{selected.description}</p><p><b>Eligibility:</b> {selected.eligibility || "Not specified"}</p><p><b>Skills:</b> {(selected.skills || []).join(", ") || "Not specified"}</p><p><b>Deadline:</b> {selected.deadline ? formatDeadline(selected.deadline) : "Not specified"}</p><p><b>Application status:</b> {isSelectedOpen ? "Open" : "Closed"}</p>
+        {selected.applyLink && <p><b>External application link:</b> <a href={selected.applyLink} target="_blank" rel="noreferrer">Apply on company site</a></p>}
         {user?.role === "student" && isSelectedOpen && <><hr/><h3>Submit your application</h3><form onSubmit={apply}>
           <label htmlFor="resume-url">Resume link (Google Drive / portfolio URL)</label><input id="resume-url" type="url" required placeholder="https://..." value={resumeUrl} onChange={e => setResumeUrl(e.target.value)}/>
           <label htmlFor="resume-name">Resume file name</label><input id="resume-name" required placeholder="MyResume.pdf" value={resumeName} onChange={e => setResumeName(e.target.value)}/>
@@ -251,15 +369,9 @@ function App() {
       {user?.role === "student" && <section className="details-panel">
         <h2>My saved skills</h2>
         <p>Save your skills to receive alerts when matching internships are published.</p>
-        <form onSubmit={async event => {
-          event.preventDefault();
-          try {
-            const result = await request("/auth/skills", {method:"PATCH", body:JSON.stringify({skills:studentSkills.split(",").map(x=>x.trim()).filter(Boolean)})});
-            setNotice(result.message); setStudentSkills((result.user?.skills || []).join(", ")); await loadDashboard();
-          } catch(error) { setNotice(error.message); }
-        }}>
-          <label>Skills (comma-separated)<input value={studentSkills} onChange={e=>setStudentSkills(e.target.value)} placeholder="JavaScript, React, Python"/></label>
-          <button className="apply-button">Save skills</button>
+        <form onSubmit={saveSkills}>
+          <label>Skills (comma-separated)<input maxLength="1000" value={studentSkills} onChange={e=>setStudentSkills(e.target.value)} placeholder="JavaScript, React, Python"/></label>
+          <button className="apply-button" disabled={busy}>{busy ? "Saving..." : "Save skills"}</button>
         </form>
       </section>}
       {user?.role === "student" && <>
@@ -284,19 +396,54 @@ function App() {
             <p><b>Applied:</b> {new Date(app.createdAt).toLocaleDateString()}</p><p><b>Resume:</b> <a href={app.resumeUrl} target="_blank" rel="noreferrer">{app.resumeName} (open)</a></p>
             {app.coverLetter && <p><b>Cover letter:</b> {app.coverLetter}</p>}
           </article>)}</div>}
-        <h2>Notifications</h2>{notifications.length === 0 ? <p>No status notifications yet.</p> : notifications.map(item => <article className="application-card" key={item._id}>
-          <p>{item.message}</p><small>{new Date(item.createdAt).toLocaleString()}</small>{!item.read && <button className="details-button" onClick={() => markRead(item._id)}>Mark as read</button>}
+        <h2>Notifications</h2>{notifications.length === 0 ? <p>No notifications yet.</p> : notifications.map(item => <article className="application-card" key={item._id}>
+          <button type="button" className="notification-open-button" onClick={() => openNotification(item)} disabled={!item.internship} title={item.internship ? "View internship details" : "No linked internship details"} style={{ display: "block", width: "100%", padding: 0, border: "none", background: "transparent", color: "inherit", textAlign: "left", cursor: item.internship ? "pointer" : "default" }}>
+            <p>{item.message}</p>
+            {item.internship && <small>Click to view internship details</small>}
+          </button>
+          <small style={{ display: "block", marginTop: "8px" }}>{new Date(item.createdAt).toLocaleString()}</small>
+          {!item.read && <button className="details-button" onClick={() => markRead(item._id)}>Mark as read</button>}
         </article>)}
       </section>}
 
-      {user?.role === "recruiter" && <section id="post-internship" className="details-panel">
+      {user?.role === "admin" && <section className="applications-section">
+        <div className="section-heading"><div><h2>Recruiter approvals</h2><p>Review recruiter accounts waiting for approval.</p></div><span className="result-count">{pendingRecruiters.length} pending</span></div>
+        {pendingRecruiters.length === 0 ? <div className="empty-state"><p>No recruiter accounts are waiting for approval.</p></div> :
+          <div className="application-list">{pendingRecruiters.map(recruiter => <article className="application-card" key={recruiter._id}>
+            <h3>{recruiter.fullName}</h3>
+            <p>{recruiter.email}</p>
+            <p>Email verification: {recruiter.isEmailVerified ? "Verified" : "Pending"}</p>
+            {import.meta.env.DEV && !recruiter.isEmailVerified && <div>
+              <button type="button" className="details-button" disabled={busy} onClick={() => retrieveLocalVerificationLink(recruiter._id)}>Get local verification link</button>
+              {localVerificationLinks[recruiter._id] && <p><a href={localVerificationLinks[recruiter._id].verificationLink} target="_blank" rel="noreferrer" onClick={() => setLocalVerificationLinks(current => { const next = { ...current }; delete next[recruiter._id]; return next; })}>Open verification link (expires {new Date(localVerificationLinks[recruiter._id].expiresAt).toLocaleString()})</a></p>}
+            </div>}
+            <button className="apply-button" disabled={busy || !recruiter.isEmailVerified} onClick={() => reviewRecruiter(recruiter._id, "approved")}>Approve</button>
+            <button className="details-button" disabled={busy} onClick={() => reviewRecruiter(recruiter._id, "rejected")}>Reject</button>
+          </article>)}</div>}
+      </section>}
+
+      {user?.role === "recruiter" && <section className="details-panel">
         <h2>Post an internship</h2>
         <form onSubmit={async event => {
           event.preventDefault(); setBusy(true); setNotice("");
           try {
             const payload = {...jobForm, stipend:Number(jobForm.stipend), skills:jobForm.skills.split(",").map(x=>x.trim()).filter(Boolean)};
-            const result = await request("/internships", {method:"POST", body:JSON.stringify(payload)});
-            setNotice(result.message); setJobForm({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",deadline:""});
+            const recruiterId = user?.id;
+            if (!recruiterId) throw new Error("Unable to identify the signed-in recruiter. Please sign in again.");
+            const payloadKey = JSON.stringify({ recruiterId, payload });
+            let idempotencyKey = internshipAttempts.current.get(payloadKey);
+            if (!idempotencyKey) {
+              idempotencyKey = crypto.randomUUID();
+              internshipAttempts.current.set(payloadKey, idempotencyKey);
+              persistInternshipAttempts();
+            }
+            const result = await request("/internships", {method:"POST", headers:{"Idempotency-Key":idempotencyKey}, body:JSON.stringify(payload)});
+            setNotice(result.message);
+            if (!result.matchingNotificationsPending) {
+              internshipAttempts.current.delete(payloadKey);
+              persistInternshipAttempts();
+              setJobForm({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",deadline:"",applyLink:""});
+            }
             await loadInternships();
           } catch(error) { setNotice(error.message); } finally { setBusy(false); }
         }}>
@@ -308,6 +455,7 @@ function App() {
           <label>Description<textarea required value={jobForm.description} onChange={e=>setJobForm({...jobForm,description:e.target.value})}/></label>
           <label>Eligibility criteria<textarea required value={jobForm.eligibility} onChange={e=>setJobForm({...jobForm,eligibility:e.target.value})}/></label>
           <label>Required skills (comma-separated)<input value={jobForm.skills} onChange={e=>setJobForm({...jobForm,skills:e.target.value})}/></label>
+          <label>External application link (optional)<input type="url" value={jobForm.applyLink} onChange={e=>setJobForm({...jobForm,applyLink:e.target.value})} placeholder="https://..."/></label>
           <label>Application deadline<input required type="date" min={MIN_DEADLINE_UTC} value={jobForm.deadline} onChange={e=>setJobForm({...jobForm,deadline:e.target.value})}/></label>
           <button className="apply-button" disabled={busy}>Publish internship</button>
         </form>
@@ -318,6 +466,8 @@ function App() {
             <div className="application-card-heading"><div><h3>{app.student?.fullName}</h3><p>{app.student?.email} · {app.student?.srn || "No SRN"}</p><b>{app.internship?.title} — {app.internship?.company}</b></div><span className={`status-badge status-${app.status.toLowerCase()}`}>{app.status}</span></div>
             <p><b>Resume:</b> <a href={app.resumeUrl} target="_blank" rel="noreferrer">{app.resumeName} (open)</a></p>{app.coverLetter && <p><b>Cover letter:</b> {app.coverLetter}</p>}
             <label htmlFor={`status-${app._id}`}>Update status</label><select id={`status-${app._id}`} value={app.status} onChange={e => updateStatus(app._id,e.target.value)}>{STATUSES.map(status => <option key={status}>{status}</option>)}</select>
+            {app.statusNotificationPending && <button className="details-button" disabled={busy} onClick={() => updateStatus(app._id, app.status)}>Retry notification</button>}
+            {app.statusEmailPending && <button className="details-button" disabled={busy} onClick={() => updateStatus(app._id, app.status)}>Retry status email</button>}
           </article>)}</div>}
       </section>}
     </main>

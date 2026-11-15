@@ -1,7 +1,7 @@
 # Bhavani Shahapur — Build, Test Environment and Release Readiness Contribution
 
-**Team:** 12  
-**SRN:** PES2UG24CS114  
+**Team:** 12
+**SRN:** PES2UG24CS114
 **Role source:** Software Test Plan v1.0, Section 9 and Section 15.
 
 ## Assigned responsibilities from the submitted Test Plan

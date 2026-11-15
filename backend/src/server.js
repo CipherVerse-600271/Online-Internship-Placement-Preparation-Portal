@@ -1,15 +1,18 @@
-
 require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+const mongoose = require("mongoose");
 const connectDB = require("./config/db");
+const Internship = require("../models/Internship");
+const Notification = require("../models/Notification");
 const authRoutes = require("./routes/authRoutes");
 const internshipRoutes = require("../routes/internshipRoutes");
-const adminRoutes = require("./routes/adminRoutes");
+const adminDashboardRoutes = require("./routes/adminRoutes");
+const adminWorkflowRoutes = require("../routes/adminRoutes");
 const applicationRoutes = require("../routes/applicationRoutes");
 const notificationRoutes = require("../routes/notificationRoutes");
-const aptitudeRoutes = require("../routes/aptitudeRoutes");
+const aptitudeRoutes = require("./routes/aptitudeRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const httpsOnly = require("./middleware/httpsOnly");
 const createHealthRouter = require("./routes/healthRoutes");
@@ -18,12 +21,12 @@ const app = express();
 
 if (process.env.TRUST_PROXY === "1") app.set("trust proxy", 1);
 app.use(httpsOnly);
-
 app.use(cors());
 app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/internships", internshipRoutes);
-app.use("/api/admin", adminRoutes);
+app.use("/api/admin", adminDashboardRoutes);
+app.use("/api/admin", adminWorkflowRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/aptitude", aptitudeRoutes);
@@ -41,7 +44,15 @@ app.use("/api/health", createHealthRouter());
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
-  await connectDB();
+  try {
+    await connectDB();
+    await Promise.all([Internship.init(), Notification.init()]);
+  } catch (error) {
+    console.error("Database index initialization failed; the HTTP server was not started:", error.message);
+    await mongoose.disconnect().catch(() => {});
+    process.exitCode = 1;
+    return;
+  }
 
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);

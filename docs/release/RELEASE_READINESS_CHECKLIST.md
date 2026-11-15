@@ -1,9 +1,9 @@
 # Release Readiness Checklist
 
-**Release / sprint:**  
-**Build commit SHA:**  
-**Environment:**  
-**Review date:**  
+**Release / sprint:**
+**Build commit SHA:**
+**Environment:**
+**Review date:**
 
 ## Build owner — Bhavani Shahapur
 
@@ -36,9 +36,9 @@
 - [ ] Sprint demonstration video is uploaded to the repository as required.
 - [ ] Release decision recorded: **Not reviewed / Ready / Not ready**.
 
-Build Owner: Bhavani Shahapur — Date:  
-Product Owner: Bhavani Shahapur — Date:  
-QA Lead: Benita Wilson — Date:  
+Build Owner: Bhavani Shahapur — Date:
+Product Owner: Bhavani Shahapur — Date:
+QA Lead: Benita Wilson — Date:
 Repository owner / reviewer: — Date:
 
 *Checking a box means evidence has been reviewed. Do not mark an item complete solely because a workflow or document exists.*

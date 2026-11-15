@@ -6,7 +6,11 @@ const applicationSchema = new mongoose.Schema({
   resumeUrl: { type: String, required: true, trim: true },
   resumeName: { type: String, required: true, trim: true },
   coverLetter: { type: String, trim: true, default: "" },
-  status: { type: String, enum: ["Pending", "Shortlisted", "Rejected", "Accepted"], default: "Pending" }
+  status: { type: String, enum: ["Pending", "Shortlisted", "Rejected", "Accepted"], default: "Pending" },
+  statusNotificationKey: { type: String, default: null },
+  statusNotificationPending: { type: Boolean, default: false },
+  statusEmailPending: { type: Boolean, default: false },
+  statusEmailSendingAt: { type: Date, default: null }
 }, { timestamps: true });
 
 applicationSchema.index({ student: 1, internship: 1 }, { unique: true });

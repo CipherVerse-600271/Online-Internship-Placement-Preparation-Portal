@@ -1,11 +1,11 @@
 # Sprint 2 Individual Contribution Report — Bhavani Shahapur
 
-**Project:** Online Internship & Placement Preparation Portal  
-**Team:** 12  
-**Member:** Bhavani Shahapur  
-**SRN:** PES2UG24CS114  
-**Assigned roles in the submitted Software Test Plan:** Developer / Build Owner; Product Owner / Placement Coordinator  
-**Sprint window in course deliverables:** 26–30 October 2026  
+**Project:** Online Internship & Placement Preparation Portal
+**Team:** 12
+**Member:** Bhavani Shahapur
+**SRN:** PES2UG24CS114
+**Assigned roles in the submitted Software Test Plan:** Developer / Build Owner; Product Owner / Placement Coordinator
+**Sprint window in course deliverables:** 26–30 October 2026
 **Prepared against:** SRS v1.0 (04-09-2026), SAD supplied in repository, Software Test Plan v1.0 (16-09-2026), and the supplied project ZIP snapshot.
 
 ## 1. Scope of my Sprint 2 responsibility
@@ -49,19 +49,19 @@ A limited manual check of the admin recruiter-approval workflow was demonstrated
 
 ## 4. Defect / risk disposition
 
-**ENV-001 — Backend dependencies unavailable during validation**  
-Severity: Medium (validation blocker; not yet confirmed as a source-code defect).  
-Observed: backend `npm test` could not load test files requiring `mongoose`, `bcryptjs`, and `express`. A clean `npm ci` attempt did not finish within the execution window.  
+**ENV-001 — Backend dependencies unavailable during validation**
+Severity: Medium (validation blocker; not yet confirmed as a source-code defect).
+Observed: backend `npm test` could not load test files requiring `mongoose`, `bcryptjs`, and `express`. A clean `npm ci` attempt did not finish within the execution window.
 Required disposition: rerun `npm ci` in a network-enabled environment; rerun `npm run check` and `npm test`; if the clean install succeeds and the same failures persist, create a code defect with full logs and commit SHA.
 
-**ENV-002 — Frontend build/lint and hosted CI evidence unavailable**  
-Severity: Medium (release evidence gap).  
-Observed: frontend dependencies were not installed and this package cannot inspect the hosted Actions run history.  
+**ENV-002 — Frontend build/lint and hosted CI evidence unavailable**
+Severity: Medium (release evidence gap).
+Observed: frontend dependencies were not installed and this package cannot inspect the hosted Actions run history.
 Required disposition: run frontend `npm ci`, `npm run build`, and `npm run lint`; verify both jobs in GitHub Actions for the final PR commit.
 
-**ENV-003 — UAT/NFR evidence not present in supplied snapshot**  
-Severity: High for release decision where acceptance criteria require evidence.  
-Observed: templates exist, but no completed, attributable execution evidence was supplied for UAT, performance, availability, concurrency, TLS, or accessibility.  
+**ENV-003 — UAT/NFR evidence not present in supplied snapshot**
+Severity: High for release decision where acceptance criteria require evidence.
+Observed: templates exist, but no completed, attributable execution evidence was supplied for UAT, performance, availability, concurrency, TLS, or accessibility.
 Required disposition: test owners execute their assigned cases in the configured test/staging environment and attach evidence. Do not mark these requirements passed based on source inspection or CI alone.
 
 ## 5. Sprint 2 outcome
@@ -74,6 +74,6 @@ Bhavani Shahapur owns the build/environment and Product Owner review records des
 
 ---
 
-**Prepared by:** Bhavani Shahapur (PES2UG24CS114)  
-**Evidence basis:** supplied project ZIP and submitted SRS/SAD/Software Test Plan.  
+**Prepared by:** Bhavani Shahapur (PES2UG24CS114)
+**Evidence basis:** supplied project ZIP and submitted SRS/SAD/Software Test Plan.
 **Status:** Sprint 2 contribution package prepared; release approval pending verified execution evidence and team sign-offs.

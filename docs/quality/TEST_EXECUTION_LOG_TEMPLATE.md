@@ -1,10 +1,10 @@
 # Test Execution Log
 
-**Cycle / sprint:**  
-**Build commit SHA:**  
-**Environment:**  
-**Executed by:**  
-**Execution date:**  
+**Cycle / sprint:**
+**Build commit SHA:**
+**Environment:**
+**Executed by:**
+**Execution date:**
 
 | Test Case ID | Requirement ID | Result (Not run / Pass / Fail / Blocked) | Actual result / notes | Evidence | Defect ID | Retest result |
 |---|---|---|---|---|---|---|

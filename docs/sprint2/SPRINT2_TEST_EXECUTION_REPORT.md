@@ -1,9 +1,9 @@
 # Sprint 2 Build and Test Execution Report
 
-**Project:** Online Internship & Placement Preparation Portal — Team 12  
-**Build Owner:** Bhavani Shahapur (PES2UG24CS114)  
-**Course Sprint 2 dates:** 26–30 October 2026  
-**Validation performed for this package:** 15 November 2026  
+**Project:** Online Internship & Placement Preparation Portal — Team 12
+**Build Owner:** Bhavani Shahapur (PES2UG24CS114)
+**Course Sprint 2 dates:** 26–30 October 2026
+**Validation performed for this package:** 15 November 2026
 **Runtime:** Node.js v22.16.0; npm 10.9.2; Linux execution environment.
 
 ## 1. Purpose

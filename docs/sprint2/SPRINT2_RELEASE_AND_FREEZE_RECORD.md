@@ -1,8 +1,8 @@
 # Sprint 2 Release Readiness and Development Freeze Record
 
-**Project:** Online Internship & Placement Preparation Portal — Team 12  
-**Sprint 2 course window:** 26–30 October 2026  
-**Build Owner / Product Owner:** Bhavani Shahapur (PES2UG24CS114)  
+**Project:** Online Internship & Placement Preparation Portal — Team 12
+**Sprint 2 course window:** 26–30 October 2026
+**Build Owner / Product Owner:** Bhavani Shahapur (PES2UG24CS114)
 **Record status:** Conditional; release is not approved on current evidence.
 
 ## 1. Freeze scope

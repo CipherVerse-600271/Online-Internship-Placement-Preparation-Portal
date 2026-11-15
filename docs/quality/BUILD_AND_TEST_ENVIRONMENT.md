@@ -1,7 +1,7 @@
 # Build and Test Environment Runbook
 
-**Owner:** Bhavani Shahapur — Developer / Build Owner  
-**Project:** Online Internship & Placement Preparation Portal, Team 12  
+**Owner:** Bhavani Shahapur — Developer / Build Owner
+**Project:** Online Internship & Placement Preparation Portal, Team 12
 **Baseline:** SRS v1.0 and Software Test Plan v1.0
 
 ## 1. Purpose and ownership
