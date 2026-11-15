@@ -226,8 +226,8 @@ Automated checks should be configured through GitHub Actions as the project deve
 
 The team is organizing work into two development sprints:
 
-- **Sprint 1:** October 19â€“23, 2026.
-- **Sprint 2:** October 26â€“30, 2026.
+- **Sprint 1:** October 19–23, 2026.
+- **Sprint 2:** October 26–30, 2026.
 
 Development tasks are tracked through GitHub Issues. The team will use story-point estimates, assignees, sprint assignments, Pull Requests, and demonstrations to monitor progress.
 
@@ -237,19 +237,19 @@ The backend foundation currently includes the following structure:
 
 ```text
 Online-Internship-Placement-Preparation-Portal/
-â”œâ”€â”€ backend/
-â”‚   â”œâ”€â”€ src/
-â”‚   â”‚   â””â”€â”€ server.js
-â”‚   â”œâ”€â”€ config/
-â”‚   â”œâ”€â”€ middleware/
-â”‚   â”œâ”€â”€ models/
-â”‚   â”œâ”€â”€ routes/
-â”‚   â”œâ”€â”€ utils/
-â”‚   â”œâ”€â”€ .env.example
-â”‚   â”œâ”€â”€ package.json
-â”‚   â””â”€â”€ package-lock.json
-â”œâ”€â”€ .gitignore
-â””â”€â”€ README.md
+├── backend/
+│   ├── src/
+│   │   └── server.js
+│   ├── config/
+│   ├── middleware/
+│   ├── models/
+│   ├── routes/
+│   ├── utils/
+│   ├── .env.example
+│   ├── package.json
+│   └── package-lock.json
+├── .gitignore
+└── README.md
 ```
 
 Additional frontend, testing, documentation, and deployment directories may be added as implementation progresses.
