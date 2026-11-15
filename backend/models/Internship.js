@@ -8,6 +8,7 @@ const internshipSchema = new mongoose.Schema({
  description:{type:String,required:true,trim:true,maxlength:5000},
  eligibility:{type:String,required:true,trim:true,maxlength:2000},
  skills:{type:[String],default:[]},
+ aptitudeTopics:{type:[{type:String,enum:["quantitative","logical","verbal"]}],default:[]},
  applyLink:{type:String,default:""},
  recruiter:{type:mongoose.Schema.Types.ObjectId,ref:"User",required:true,index:true},
  deadline:{type:Date,required:true},
