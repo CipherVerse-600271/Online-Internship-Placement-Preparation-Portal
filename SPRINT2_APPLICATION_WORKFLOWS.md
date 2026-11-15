@@ -52,7 +52,7 @@ A notification is created only when the status actually changes. Application own
 2. Configure `.env` with `MONGODB_URI`, `JWT_SECRET`, and any email settings required by the existing authentication module.
 3. Start the API with `npm run dev` (or `npm start`).
 4. In `frontend`, run `npm install` and `npm run dev`.
-5. Register/sign in. Student registration requires the official PESU student email verification flow. Recruiter accounts must be approved before they can sign in.
+5. Register/sign in. Students can register with any valid email address without student email verification. Recruiters must verify their email and receive admin approval before they can sign in.
 6. Sign in as a student, apply to an internship with a shareable resume URL, then sign in as the owning recruiter and update the status. Sign back in as the student to verify the application and notification.
 
 ## Manual acceptance checks
@@ -62,3 +62,23 @@ A notification is created only when the status actually changes. Application own
 - Recruiter A cannot view or update applications for Recruiter B's internships.
 - Each allowed status is saved and appears after refreshing the student's application list.
 - A status change creates a notification containing the internship title and new status; selecting Mark as read persists the read flag.
+
+## Current Sprint 2 integration behavior
+
+- Student and recruiter registration and email verification use the auth routes. Recruiters remain pending until a separate admin approves them; there is no public admin registration route.
+- An admin cannot approve a recruiter until the recruiter has verified their email; rejection remains available for pending accounts.
+- Admin approval endpoints are mounted under /api/admin and require an authenticated admin role. The development admin is provisioned only by backend/scripts/createLocalAdmin.js; the script requires NODE_ENV=development, a local MongoDB URI naming exactly internship_portal_sprint2_test, and interactive prompts.
+- Public internship listings support search, skill, location, minStipend, maxStipend, and duration. Applications are rejected for inactive internships and deadlines before the current UTC day.
+- Internship creation requires a UUID Idempotency-Key. The key is tied to the recruiter and canonical request payload; repeating the same request retries matching notification delivery. The schema declares unique sparse indexes for Internship.idempotencyKey and Notification.eventKey.
+- Application status notification and email retries use separate pending fields. Email retries use a bounded five-minute claim lease. Delivery is at least once: a process failure after an email provider accepts a message but before MongoDB records success can lead to a duplicate on retry.
+- Configure local runs with NODE_ENV=development, EMAIL_MODE=mock, and MONGODB_URI pointing to the local internship_portal_sprint2_test database. Non-production backend startup rejects remote hosts, SRV URIs, and any other database name before connecting. Mock messages are kept in process memory; verification links are deliberately not written to logs.
+- The active backend startup waits for Internship.init() and Notification.init() before listening. If initialization rejects, it reports the failure and does not start the HTTP listener.
+
+## Verification record for this integration review
+
+- Backend JavaScript syntax check: PASS for all 16 backend JavaScript files outside node_modules.
+- Frontend lint: completed with two react(set-state-in-effect) warnings in frontend/src/App.jsx (lines 109-110); no lint errors were reported.
+- Frontend production build: PASS using Vite's runner config loader and a temporary output directory.
+- git diff --check: PASS after line-ending normalization of the startup file.
+- Backend automated tests: NOT TESTED; the backend test script is a placeholder that exits with no test specified.
+- Database index inspection and end-to-end tests: BLOCKED because MONGODB_URI was not configured in the process environment. No MongoDB connection or database operation was performed. No feature test result is implied by the static checks above.

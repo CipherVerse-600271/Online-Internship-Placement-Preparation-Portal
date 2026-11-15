@@ -1,9 +1,3 @@
-<<<<<<< HEAD
 node_modules/
 .env
 coverage/
-=======
-
-node_modules/
-.env
->>>>>>> origin/main

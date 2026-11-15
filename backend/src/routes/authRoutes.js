@@ -1,5 +1,6 @@
 
 const express = require("express");
+const { rateLimit } = require("express-rate-limit");
 const { body, validationResult } = require("express-validator");
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
@@ -8,6 +9,25 @@ const { sendVerificationEmail } = require("../utils/emailService");
 const { protect, authorize } = require("../middleware/authMiddleware");
 
 const router = express.Router();
+const resendVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many verification requests. Please try again later."
+  }
+});
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many login attempts. Please try again later."
+  }
+});
 
 // STUDENT REGISTRATION
 router.post(
@@ -16,9 +36,8 @@ router.post(
     body("fullName").trim().notEmpty(),
     body("email")
       .isEmail()
-      .normalizeEmail()
-      .matches(/^[a-zA-Z0-9._%+-]+@stu\.pes\.edu$/)
-      .withMessage("Please use your official PESU student email address"),
+      .withMessage("Please use any valid email address")
+      .normalizeEmail(),
     body("srn").trim().notEmpty(),
     body("password").isLength({ min: 8 })
   ],
@@ -45,38 +64,17 @@ router.post(
         });
       }
 
-      const verificationToken = crypto.randomBytes(32).toString("hex");
-
       const user = await User.create({
         fullName,
         email,
         srn,
         password,
         role: "student",
-        emailVerificationToken: crypto
-          .createHash("sha256")
-          .update(verificationToken)
-          .digest("hex"),
-        emailVerificationExpiry: new Date(Date.now() + 10 * 60 * 1000)
+        isEmailVerified: true,
       });
 
-      console.log("Student created. Sending verification email...");
-
-      try {
-        await sendVerificationEmail(user.email, verificationToken);
-      } catch (emailError) {
-        console.error("Verification email failed:", emailError.message);
-
-        await User.deleteOne({ _id: user._id });
-
-        return res.status(503).json({
-          message:
-            "Registration could not be completed because the verification email could not be sent. Please try again later."
-        });
-      }
-
       return res.status(201).json({
-        message: "Student registered successfully. Verification email sent.",
+        message: "Student registered successfully. You can now log in.",
         user: {
           id: user._id,
           fullName: user.fullName,
@@ -122,17 +120,33 @@ router.post(
         });
       }
 
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+
       const user = await User.create({
         fullName,
         email,
         password,
         role: "recruiter",
         recruiterStatus: "pending",
-        isEmailVerified: false
+        isEmailVerified: false,
+        emailVerificationToken: crypto
+          .createHash("sha256")
+          .update(verificationToken)
+          .digest("hex"),
+        emailVerificationExpiry: new Date(Date.now() + 10 * 60 * 1000)
       });
 
+      try {
+        await sendVerificationEmail(user.email, verificationToken);
+      } catch (emailError) {
+        console.error("Recruiter verification email failed:", emailError.message);
+        return res.status(503).json({
+          message: "Account created, but verification email could not be sent. Use the resend option to try again."
+        });
+      }
+
       return res.status(201).json({
-        message: "Recruiter registered. Awaiting admin verification.",
+        message: "Recruiter registered. Verify your email and await admin approval before logging in.",
         user: {
           id: user._id,
           fullName: user.fullName,
@@ -151,9 +165,44 @@ router.post(
   }
 );
 
+// Resend without revealing whether the email belongs to an eligible account.
+router.post("/resend-verification", resendVerificationLimiter, async (req, res) => {
+  const genericResponse = {
+    message: "If an eligible recruiter account exists, a verification email will be sent shortly."
+  };
+
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    if (!email) return res.status(200).json(genericResponse);
+
+    const user = await User.findOne({ email, role: "recruiter" });
+    if (user && !user.isEmailVerified && user.recruiterStatus !== "rejected") {
+      const verificationToken = crypto.randomBytes(32).toString("hex");
+      user.emailVerificationToken = crypto
+        .createHash("sha256")
+        .update(verificationToken)
+        .digest("hex");
+      user.emailVerificationExpiry = new Date(Date.now() + 10 * 60 * 1000);
+      await user.save();
+
+      try {
+        await sendVerificationEmail(user.email, verificationToken);
+      } catch (emailError) {
+        console.error("Resend verification email failed:", emailError.message);
+      }
+    }
+
+    return res.status(200).json(genericResponse);
+  } catch (error) {
+    console.error("Resend verification request failed:", error.message);
+    return res.status(200).json(genericResponse);
+  }
+});
+
 // LOGIN
 router.post(
   "/login",
+  loginLimiter,
   [
     body("email").isEmail().normalizeEmail(),
     body("password").notEmpty()
@@ -204,7 +253,7 @@ router.post(
         });
       }
 
-      if (!user.isEmailVerified) {
+      if (user.role !== "student" && !user.isEmailVerified) {
         return res.status(403).json({
           message: "Please verify your email before logging in"
         });
@@ -321,11 +370,19 @@ router.get(
 );
 
 
+router.get("/skills", protect, authorize("student"), async (req, res) => {
+  return res.status(200).json({ skills: req.user.skills || [] });
+});
+
 router.patch("/skills", protect, authorize("student"), async (req, res) => {
   try {
     const skills = Array.isArray(req.body.skills) ? req.body.skills : String(req.body.skills || "").split(",");
     const cleaned = [...new Set(skills.map(skill => String(skill).trim()).filter(Boolean))];
-    const user = await User.findByIdAndUpdate(req.user._id, { skills: cleaned }, { new: true }).select("fullName email skills");
+    if (cleaned.length > 30) {
+      return res.status(400).json({ message: "You can save a maximum of 30 skills." });
+    }
+    const user = await User.findByIdAndUpdate(req.user._id, { skills: cleaned }, { new: true, runValidators: true }).select("fullName email skills");
+    if (!user) return res.status(404).json({ message: "Student not found." });
     res.json({ message: "Your skills have been saved.", user });
   } catch (error) {
     res.status(400).json({ message: "Unable to save skills." });

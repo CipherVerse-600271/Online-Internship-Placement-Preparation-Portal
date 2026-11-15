@@ -117,7 +117,9 @@ Configure the required environment variables, including:
 
 ```env
 PORT=5000
-MONGO_URI=your_mongodb_connection_string
+NODE_ENV=development
+EMAIL_MODE=mock
+MONGODB_URI=your_local_test_database_connection_string
 JWT_SECRET=your_strong_secret_key
 JWT_EXPIRES_IN=1d
 ```
