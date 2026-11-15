@@ -26,6 +26,7 @@ const aptitudeSessionSchema = new mongoose.Schema(
     startedAt: { type: Date, required: true },
     expiresAt: { type: Date, required: true },
     submittedAt: { type: Date, default: null },
+    timeTakenSeconds: { type: Number, min: 0, default: null },
     status: {
       type: String,
       enum: ["in_progress", "submitted", "expired"],
