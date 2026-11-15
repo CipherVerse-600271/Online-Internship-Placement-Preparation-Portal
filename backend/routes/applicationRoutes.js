@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const { randomUUID } = require("crypto");
+const { isEmail } = require("validator");
 const Application = require("../models/Application");
 const Internship = require("../models/Internship");
 const Notification = require("../models/Notification");
@@ -72,6 +73,8 @@ const ensureStatusNotification = async (application, adoptLegacyNotification) =>
 router.post("/", protect, authorize("student"), async (req, res) => {
   try {
     const { internshipId, resumeUrl, resumeName, coverLetter = "" } = req.body;
+    if (!req.user.fullName?.trim()) return res.status(400).json({ message: "Your account must include your name before applying." });
+    if (!isEmail(req.user.email || "")) return res.status(400).json({ message: "Your account must include a valid email address before applying." });
     if (!mongoose.isValidObjectId(internshipId)) return res.status(400).json({ message: "A valid internshipId is required." });
     if (!resumeUrl || !resumeName) return res.status(400).json({ message: "Resume URL and file name are required." });
     let parsedResumeUrl;
