@@ -61,6 +61,10 @@ const finalizeSession = async (session) => {
     session.submittedAt = expired ? session.expiresAt : new Date();
   }
 
+  if (session.submittedAt && session.startedAt && session.timeTakenSeconds == null) {
+    session.timeTakenSeconds = Math.max(0, Math.round((new Date(session.submittedAt) - new Date(session.startedAt)) / 1000));
+  }
+
   if (!session.result || session.result.totalQuestions === 0) {
     evaluateSession(session);
   }
@@ -134,6 +138,7 @@ router.get("/sessions/:sessionId", async (req, res) => {
       startedAt: session.startedAt,
       expiresAt: session.expiresAt,
       submittedAt: session.submittedAt,
+      timeTakenSeconds: session.timeTakenSeconds,
       answers: session.answers,
       result: session.result,
       questions: session.questionIds
@@ -199,6 +204,7 @@ router.post("/sessions/:sessionId/submit", async (req, res) => {
       message: session.status === "expired" ? "Time expired. Test ended automatically." : "Test submitted successfully.",
       status: session.status,
       submittedAt: session.submittedAt,
+      timeTakenSeconds: session.timeTakenSeconds,
       result: session.result
     });
   } catch (error) {
