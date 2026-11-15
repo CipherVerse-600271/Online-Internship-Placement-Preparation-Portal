@@ -357,6 +357,8 @@ function App() {
         <p>{selected.description}</p><p><b>Eligibility:</b> {selected.eligibility || "Not specified"}</p><p><b>Skills:</b> {(selected.skills || []).join(", ") || "Not specified"}</p><p><b>Deadline:</b> {selected.deadline ? formatDeadline(selected.deadline) : "Not specified"}</p><p><b>Application status:</b> {isSelectedOpen ? "Open" : "Closed"}</p>
         {selected.applyLink && <p><b>External application link:</b> <a href={selected.applyLink} target="_blank" rel="noreferrer">Apply on company site</a></p>}
         {user?.role === "student" && isSelectedOpen && <><hr/><h3>Submit your application</h3><form onSubmit={apply}>
+          <label htmlFor="application-student-name">Student name</label><input id="application-student-name" type="text" value={user.fullName || ""} readOnly/>
+          <label htmlFor="application-student-email">Student email</label><input id="application-student-email" type="email" value={user.email || ""} readOnly/>
           <label htmlFor="resume-url">Resume link (Google Drive / portfolio URL)</label><input id="resume-url" type="url" required placeholder="https://..." value={resumeUrl} onChange={e => setResumeUrl(e.target.value)}/>
           <label htmlFor="resume-name">Resume file name</label><input id="resume-name" required placeholder="MyResume.pdf" value={resumeName} onChange={e => setResumeName(e.target.value)}/>
           <label htmlFor="cover-letter">Cover letter (optional)</label><textarea id="cover-letter" rows="4" value={coverLetter} onChange={e => setCoverLetter(e.target.value)}/>
