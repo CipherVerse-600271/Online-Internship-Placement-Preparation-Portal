@@ -32,6 +32,7 @@ function App() {
   const [maxStipend, setMaxStipend] = useState("");
   const [durationFilter, setDurationFilter] = useState("");
   const [notice, setNotice] = useState("");
+  const [devVerificationUrl, setDevVerificationUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [jobForm, setJobForm] = useState({title:"",company:"",location:"",stipend:"",duration:"",description:"",eligibility:"",skills:"",aptitudeTopics:"",deadline:""});
   const [studentSkills, setStudentSkills] = useState("");
@@ -93,7 +94,7 @@ function App() {
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
 
   async function submitAuth(event) {
-    event.preventDefault(); setBusy(true); setNotice("");
+    event.preventDefault(); setBusy(true); setNotice(""); setDevVerificationUrl("");
     try {
       const endpoint = authMode === "login"
         ? "/auth/login"
@@ -103,7 +104,8 @@ function App() {
         : { fullName: auth.fullName, email: auth.email, password: auth.password, companyName: auth.companyName, companyWebsite: auth.companyWebsite, companyEmail: auth.companyEmail };
       const data = await request(endpoint, { method: "POST", body: JSON.stringify(payload) });
       if (authMode === "register") {
-        setNotice(data.message + (authRole === "recruiter" ? " Verify your email and await administrator approval before signing in." : " Check your inbox for the verification link, then sign in."));
+        setNotice(data.message + (authRole === "recruiter" ? " Verify your email and await administrator approval before signing in." : data.devVerificationUrl ? " Open the development verification link to activate your account." : " Check your inbox for the verification link, then sign in."));
+        setDevVerificationUrl(data.devVerificationUrl || "");
       } else {
         localStorage.setItem("portalToken", data.token);
         localStorage.setItem("portalUser", JSON.stringify(data.user));
@@ -191,6 +193,7 @@ function App() {
     </nav>}
     <main className="container">
       {notice && <p className="feedback-message" role="status">{notice}</p>}
+      {devVerificationUrl && <p className="feedback-message" role="status"><a href={devVerificationUrl} target="_blank" rel="noreferrer">Verify student account locally</a></p>}
       {!user && <section className="details-panel auth-panel">
         <p className="eyebrow">STUDENT · RECRUITER · ADMIN</p>
         <h2>{authMode === "login" ? "Welcome back" : authMode === "register" ? "Create your account" : authMode === "forgot" ? "Reset your password" : "Enter your reset code"}</h2>
