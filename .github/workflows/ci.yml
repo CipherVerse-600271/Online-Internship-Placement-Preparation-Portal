@@ -9,7 +9,7 @@ permissions:
   contents: read
 jobs:
   backend:
-    name: Backend checks and tests
+    name: Backend checks, tests and coverage
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -23,9 +23,18 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm run check
-      - run: npm test
+      - run: npm run coverage
       - name: Check JavaScript syntax
         run: find . -path ./node_modules -prune -o -name '*.js' -type f -print0 | xargs -0 -r -n1 node --check
+      - name: Upload backend coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-report
+          path: |
+            backend/coverage/
+          if-no-files-found: warn
+          retention-days: 14
   frontend:
     name: Frontend build and lint
     runs-on: ubuntu-latest
