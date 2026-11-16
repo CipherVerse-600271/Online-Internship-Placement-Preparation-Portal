@@ -57,18 +57,27 @@ router.post(
         });
       }
 
+      const verificationToken = crypto.randomBytes(32).toString("hex");
       const user = await User.create({
         fullName,
         email,
         srn,
         password,
         role: "student",
-        isEmailVerified: true,
+        isEmailVerified: false,
+        emailVerificationToken: crypto.createHash("sha256").update(verificationToken).digest("hex"),
+        emailVerificationExpiry: new Date(Date.now() + 10 * 60 * 1000)
       });
 
+      try {
+        await sendVerificationEmail(user.email, verificationToken);
+      } catch (emailError) {
+        console.error("Student verification email failed:", emailError.message);
+        return res.status(503).json({ message: "Account created, but verification email could not be sent. Use the resend option to try again." });
+      }
 
       return res.status(201).json({
-        message: "Student registered successfully. You can now log in.",
+        message: "Student registered successfully. Verification email sent.",
         user: {
           id: user._id,
           fullName: user.fullName,
@@ -152,14 +161,14 @@ router.post(
 // Resend without revealing whether the email belongs to an eligible account.
 router.post("/resend-verification", resendVerificationLimiter, async (req, res) => {
   const genericResponse = {
-    message: "If an eligible recruiter account exists, a verification email will be sent shortly."
+    message: "If an unverified account exists, a verification email will be sent shortly."
   };
 
   try {
     const email = String(req.body?.email || "").trim().toLowerCase();
     if (!email) return res.status(200).json(genericResponse);
 
-    const user = await User.findOne({ email, role: "recruiter" });
+    const user = await User.findOne({ email, role: { $in: ["student", "recruiter"] } });
     if (user && !user.isEmailVerified && user.recruiterStatus !== "rejected") {
       const verificationToken = crypto.randomBytes(32).toString("hex");
       user.emailVerificationToken = crypto
@@ -243,7 +252,7 @@ router.post(
         });
       }
 
-      if (user.role !== "student" && !user.isEmailVerified) {
+      if (!user.isEmailVerified) {
         await recordAudit("auth.login_unverified", { subject: user._id, outcome: "failure" });
         return res.status(403).json({
           message: "Please verify your email before logging in"
