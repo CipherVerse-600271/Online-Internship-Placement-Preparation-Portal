@@ -26,34 +26,22 @@ router.post(
   async (req, res) => {
     try {
       if (errorsFor(req, res)) return;
-
       const { fullName, email, srn, password } = req.body;
-
       const existingUser = await User.findOne({
-        $or: [
-          { email: email.toLowerCase() },
-          { srn: srn.toUpperCase() }
-        ]
+        $or: [{ email: email.toLowerCase() }, { srn: srn.toUpperCase() }]
       });
-
       if (existingUser) {
-        return res.status(409).json({
-          message: "Email or SRN is already registered"
-        });
+        return res.status(409).json({ message: "Email or SRN is already registered" });
       }
 
       const verificationToken = crypto.randomBytes(32).toString("hex");
-
       const user = await User.create({
         fullName,
         email,
         srn,
         password,
         role: "student",
-        emailVerificationToken: crypto
-          .createHash("sha256")
-          .update(verificationToken)
-          .digest("hex"),
+        emailVerificationToken: crypto.createHash("sha256").update(verificationToken).digest("hex"),
         emailVerificationExpiry: new Date(Date.now() + 10 * 60 * 1000)
       });
 
@@ -61,19 +49,21 @@ router.post(
         await sendVerificationEmail(user.email, verificationToken);
       } catch (emailError) {
         console.error("Student verification email failed:", emailError.message);
-        const devFallbackEnabled = process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_EMAIL_VERIFICATION === "true";
+        const devFallbackEnabled =
+          process.env.NODE_ENV !== "production" &&
+          process.env.ENABLE_DEV_EMAIL_VERIFICATION === "true";
         if (devFallbackEnabled) {
-          const baseUrl = (process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\\/$/, "");
+          const baseUrl = (process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, "");
           return res.status(201).json({
             message: "Student registered. Email delivery failed; use the local development verification link below.",
             devVerificationUrl: `${baseUrl}/api/auth/verify-email/${encodeURIComponent(verificationToken)}`,
-        user: {
-          id: user._id,
-          fullName: user.fullName,
-          email: user.email,
-          srn: user.srn,
-          role: user.role,
-          isEmailVerified: user.isEmailVerified
+            user: {
+              id: user._id,
+              fullName: user.fullName,
+              email: user.email,
+              srn: user.srn,
+              role: user.role,
+              isEmailVerified: user.isEmailVerified
             }
           });
         }
@@ -82,9 +72,18 @@ router.post(
 
       return res.status(201).json({
         message: "Student registered successfully. Verification email sent.",
+        user: {
+          id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          srn: user.srn,
+          role: user.role,
+          isEmailVerified: user.isEmailVerified
+        }
+      });
+    } catch (error) {
       if (error.code === 11000) return res.status(409).json({ message: "Email or SRN is already registered" });
       console.error("Student registration failed:", error.message);
-      if (error.message && /email|smtp|auth/i.test(error.message)) return res.status(503).json({ message: "Unable to send the verification email. Please try again later." });
       return res.status(500).json({ message: "Unable to register student" });
     }
   }
