@@ -21,12 +21,12 @@ Render's free API service sleeps after 15 minutes without traffic, takes about a
 
 ## Run a local demo with verification emails
 
-1. Start a local MongoDB service. In `backend/.env`, use `MONGODB_URI=mongodb://127.0.0.1:27017/internship_portal_sprint2_test`. Development mode intentionally restricts writes to this local database name.
-2. Create a free Mailtrap Email Sandbox. In its **Integration → SMTP** settings, copy the SMTP username and password. Mailtrap's sandbox captures test messages for review and does not deliver them to student inboxes. The Free sandbox has a limited message allowance; check the [current plan limits](https://mailtrap.io/pricing/?tab=email-sandbox).
-3. Set `EMAIL_MODE=gmail`, `SMTP_HOST=sandbox.smtp.mailtrap.io`, `SMTP_PORT=2525`, `EMAIL_USER` and `EMAIL_APP_PASSWORD` in `backend/.env`. Despite the variable name, the custom SMTP host routes messages to Mailtrap. Set `EMAIL_FROM=demo@internship-portal.test` and `API_BASE_URL=http://localhost:5000`.
-4. Restart the API and frontend. Register a new student account, open the message in the Mailtrap sandbox, and use its verification link. For a local demo, open the link on the same computer running the API. Then sign in with the registered email and password.
+1. Start local MongoDB. In `backend/.env`, use `MONGODB_URI=mongodb://127.0.0.1:27017/internship_portal_sprint2_test`.
+2. Reuse the same Gmail sender address and SMTP app password that delivered mail in your earlier review. Set `EMAIL_MODE=gmail`, `EMAIL_USER`, and `EMAIL_APP_PASSWORD`. Leave `SMTP_HOST` and `SMTP_PORT` unset so the backend uses Gmail's built-in transport. If your previous credentials are still in `.env`, keep them; do not create a Mailtrap account.
+3. Set `EMAIL_FROM` to that sender address and `API_BASE_URL=http://localhost:5000`. Restart the API and frontend.
+4. Register a new student using the recipient email you want the verification message sent to. The backend sends the message from the configured sender to that student's email. Open the verification link on the same computer running the local API, then sign in.
 
-Do not leave `EMAIL_MODE=mock` enabled when you need to inspect messages in Mailtrap; mock mode does not send messages to the sandbox. Keep SMTP credentials in `.env`, never in Git or chat. Create fresh student records for testing; accounts registered before email verification was enabled are already verified and will not receive a new verification message.
+The email sender settings are entered once in the backend environment. Each student supplies their own recipient email in the registration form. Keep sender credentials in `.env`, never in Git or chat. Student records registered before verification was enabled are already verified; use a new email and SRN to demonstrate the email flow.
 
 ## Local deployment checks
 
