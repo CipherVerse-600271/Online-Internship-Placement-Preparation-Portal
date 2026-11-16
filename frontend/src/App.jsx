@@ -138,7 +138,7 @@ function App() {
         : { fullName: auth.fullName, email: auth.email, password: auth.password, companyName: auth.companyName, companyWebsite: auth.companyWebsite, companyEmail: auth.companyEmail };
       const data = await request(endpoint, { method: "POST", body: JSON.stringify(payload) });
       if (authMode === "register") {
-        setNotice(data.message + (authRole === "recruiter" ? " Verify your email and await administrator approval before signing in." : " Check your email or Mailtrap sandbox for the verification link before signing in."));
+        setNotice(data.message + (authRole === "recruiter" ? " Verify your email and await administrator approval before signing in." : " Check your email inbox for the verification link before signing in."));
         setPendingVerificationEmail(auth.email.trim());
         setAuthMode("login");
         setAuth({ fullName: "", email: auth.email, srn: "", password: "" });
@@ -164,7 +164,7 @@ function App() {
     event.preventDefault(); setBusy(true); setNotice("");
     try {
       const result = await request("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email: resetForm.email }) });
-      setNotice(result.message + " Check your email inbox or Mailtrap sandbox for the six-digit code.");
+      setNotice(result.message + " Check your email inbox for the six-digit code.");
       setAuthMode("reset");
     } catch (error) { setNotice(error.message); }
     finally { setBusy(false); }
