@@ -222,6 +222,8 @@ Testing should cover:
 
 Automated checks should be configured through GitHub Actions as the project develops. Tests and quality checks must pass before changes are approved for merging.
 
+For backend statement, branch, function, and line coverage, see [Test and Code Coverage](docs/TEST_COVERAGE.md). Run `npm run coverage` from the `backend` directory to generate the local HTML and LCOV reports. Coverage is currently backend-only; frontend automated coverage is not configured yet.
+
 ## Project Planning
 
 The team is organizing work into two development sprints:
