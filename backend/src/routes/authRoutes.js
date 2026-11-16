@@ -57,10 +57,16 @@ router.post(
         emailVerificationExpiry: new Date(Date.now() + 10 * 60 * 1000)
       });
 
-      await sendVerificationEmail(user.email, verificationToken);
-
-      return res.status(201).json({
-        message: "Student registered successfully. Verification email sent.",
+      try {
+        await sendVerificationEmail(user.email, verificationToken);
+      } catch (emailError) {
+        console.error("Student verification email failed:", emailError.message);
+        const devFallbackEnabled = process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_EMAIL_VERIFICATION === "true";
+        if (devFallbackEnabled) {
+          const baseUrl = (process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\\/$/, "");
+          return res.status(201).json({
+            message: "Student registered. Email delivery failed; use the local development verification link below.",
+            devVerificationUrl: `${baseUrl}/api/auth/verify-email/${encodeURIComponent(verificationToken)}`,
         user: {
           id: user._id,
           fullName: user.fullName,
@@ -68,9 +74,14 @@ router.post(
           srn: user.srn,
           role: user.role,
           isEmailVerified: user.isEmailVerified
+            }
+          });
         }
-      });
-    } catch (error) {
+        return res.status(503).json({ message: "Unable to send the verification email. Please try again later." });
+      }
+
+      return res.status(201).json({
+        message: "Student registered successfully. Verification email sent.",
       if (error.code === 11000) return res.status(409).json({ message: "Email or SRN is already registered" });
       console.error("Student registration failed:", error.message);
       if (error.message && /email|smtp|auth/i.test(error.message)) return res.status(503).json({ message: "Unable to send the verification email. Please try again later." });
