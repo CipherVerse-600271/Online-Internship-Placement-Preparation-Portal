@@ -118,16 +118,19 @@ Configure the required environment variables, including:
 ```env
 PORT=5000
 NODE_ENV=development
-EMAIL_MODE=mock
-MONGODB_URI=your_local_test_database_connection_string
-JWT_SECRET=your_strong_secret_key
-JWT_EXPIRES_IN=1d
-EMAIL_USER=your_smtp_account
-EMAIL_APP_PASSWORD=your_smtp_app_password
-API_BASE_URL=https://your-api-host
+MONGODB_URI=mongodb://127.0.0.1:27017/internship_portal_sprint2_test
+JWT_SECRET=replace_with_at_least_32_random_characters
+JWT_EXPIRES_IN=1h
+EMAIL_MODE=gmail
+SMTP_HOST=sandbox.smtp.mailtrap.io
+SMTP_PORT=2525
+EMAIL_USER=your_mailtrap_sandbox_username
+EMAIL_APP_PASSWORD=your_mailtrap_sandbox_password
+EMAIL_FROM=demo@internship-portal.test
+API_BASE_URL=http://localhost:5000
 ```
 
-Use the variable names and configuration expected by the current backend implementation. Configure any additional required variables for email integration as that feature is implemented.
+For a local review demo, create a free Mailtrap Email Sandbox and copy its SMTP credentials into the placeholders above. The sandbox captures verification and password-reset emails for inspection; messages are not delivered to recipient inboxes. The `EMAIL_MODE=gmail` setting allows the configured SMTP host to be used. If you set `EMAIL_MODE=mock`, messages are not sent to Mailtrap.
 
 **Security note:** Never commit your actual `.env` file, database credentials, email passwords, or JWT secrets to GitHub.
 
