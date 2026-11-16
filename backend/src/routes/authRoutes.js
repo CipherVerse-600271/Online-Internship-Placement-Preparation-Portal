@@ -303,11 +303,24 @@ router.post("/resend-verification", authLimiter, [body("email").isEmail().normal
     user.emailVerificationToken = crypto.createHash("sha256").update(token).digest("hex");
     user.emailVerificationExpiry = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
-    await sendVerificationEmail(user.email, token);
-    return res.status(200).json({ message: "If the account needs verification, a new link has been sent." });
+    try {
+      await sendVerificationEmail(user.email, token);
+      return res.status(200).json({ message: "If the account needs verification, a new link has been sent." });
+    } catch (emailError) {
+      console.error("Verification resend failed:", emailError.message);
+      const devFallbackEnabled = process.env.NODE_ENV !== "production" && process.env.ENABLE_DEV_EMAIL_VERIFICATION === "true";
+      if (devFallbackEnabled) {
+        const baseUrl = (process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\\/$/, "");
+        return res.status(200).json({
+          message: "Email delivery failed; use this local development verification link.",
+          devVerificationUrl: `${baseUrl}/api/auth/verify-email/${encodeURIComponent(token)}`
+        });
+      }
+      return res.status(503).json({ message: "Unable to send verification email. Try again later." });
+    }
   } catch (error) {
     console.error("Verification resend failed:", error.message);
-    return res.status(503).json({ message: "Unable to send verification email. Try again later." });
+    return res.status(500).json({ message: "Unable to process verification request." });
   }
 });
 
