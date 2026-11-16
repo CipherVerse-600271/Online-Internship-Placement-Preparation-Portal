@@ -35,7 +35,7 @@ jobs:
         run: npm ci --prefix frontend
 
       - name: Install Playwright test runner
-        run: npm install --prefix frontend --no-save --no-package-lock @playwright/test@1.56.1
+        run: npm install --prefix frontend --no-save --no-package-lock @playwright/test@1.56.1 @axe-core/playwright@4.10.2
 
       - name: Install Chromium
         working-directory: frontend

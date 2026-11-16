@@ -23,7 +23,7 @@ The command creates \`coverage/index.html\`, \`coverage/lcov.info\`, and \`cover
 
 ## Browser end-to-end tests
 
-Playwright tests run the real React frontend in Chromium against the real Express backend and a MongoDB database. They currently cover public portal loading and a complete student registration/sign-in journey. These tests are not mocked API tests.
+Playwright tests run the real React frontend in Chromium against the real Express backend and a MongoDB database. They currently cover public portal loading, a student registration/sign-in journey, and an automated axe scan of the public landing page for critical and serious WCAG 2.1 A/AA findings. These tests are not mocked API tests.
 
 Local setup requires MongoDB running on \`127.0.0.1:27017\`. In one terminal, start the backend:
 
@@ -32,7 +32,7 @@ cd backend
 $env:NODE_ENV = "test"
 $env:EMAIL_MODE = "mock"
 $env:JWT_SECRET = "portal-e2e-secret-at-least-thirty-two-characters"
-$env:MONGODB_URI = "mongodb://127.0.0.1:27017/portal_e2e"
+$env:MONGODB_URI = "mongodb://127.0.0.1:27017/internship_portal_sprint2_test"
 npm run dev
 \`\`\`
 
@@ -40,7 +40,7 @@ In a second terminal, install the browser test runner and start the frontend:
 
 \`\`\`powershell
 cd frontend
-npm install --no-save --no-package-lock @playwright/test@1.56.1
+npm install --no-save --no-package-lock @playwright/test@1.56.1 @axe-core/playwright@4.10.2
 npx playwright install chromium
 $env:VITE_API_URL = "http://127.0.0.1:5000/api"
 npm run dev
@@ -66,3 +66,10 @@ A higher coverage percentage means more measured code was executed by tests. Pay
 - Current browser tests cover the public landing/search shell and student registration/sign-in, not every recruiter, administrator, application, or aptitude workflow.
 - Python scripts and deployed-system non-functional properties are not included.
 - Passing automated tests do not replace broader security, performance, accessibility, exploratory, or acceptance testing.
+
+
+## Additional quality validation assets
+
+- `docs/quality/ACCESSIBILITY_CHECKLIST.md` contains manual keyboard, screen-reader, contrast, zoom, responsive-layout and status-message checks. Complete it and attach evidence before claiming WCAG 2.1 AA conformance.
+- `tests/load/portal-load.js` is a k6 load-test harness. It defaults to 10 virtual users and the health endpoint. Run it only against an approved staging environment. A 5,000-user acceptance run requires capacity approval and monitoring; adding the script does not mean that load target has been tested.
+- `docs/quality/QUALITY_VALIDATION_STATUS.md` tracks which quality requirements are automated and which still require deployed-environment evidence.

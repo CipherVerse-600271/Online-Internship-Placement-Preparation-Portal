@@ -58,3 +58,8 @@ The Product Owner demonstrated the local admin recruiter-approval path. A synthe
 ## 6. Exit interpretation
 
 The structure and syntax checks pass. Automated backend testing is incomplete, frontend checks are unexecuted, hosted CI results are unverified, and UAT/NFR evidence is absent. Therefore this report does **not** support a release-ready decision. Refer to `SPRINT2_RELEASE_AND_FREEZE_RECORD.md` and `SPRINT2_DEFECT_REGISTER.md`.
+
+
+## 7. Follow-up CI verification on 16 November 2026
+
+The earlier dependency-blocked local snapshot recorded above was superseded by a successful hosted CI run on main merge commit `b4abfdf4b291061beb9f4caa7647b5b3bdf1ce00`. The backend job completed with **10 tests passed and 0 failed**. c8 reported **34.55% statement coverage, 57.48% branch coverage, 46.15% function coverage, and 34.55% line coverage**; the coverage artifact was uploaded successfully. Frontend build/lint checks also passed. This resolves the earlier dependency-install blocker for that CI build, but the coverage baseline remains modest and does not imply full functional or route coverage. Browser E2E checks for selected student journeys are tracked separately in PR #62.

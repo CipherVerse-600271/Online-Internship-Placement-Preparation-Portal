@@ -109,4 +109,6 @@ Never point automated tests at production.
 
 - CI validates syntax, backend authorization helper behavior, project structure, frontend compilation and lint. It does not prove end-to-end flows against a live MongoDB/email provider.
 - The 90th-percentile ≤3-second target, 99.5% monthly availability, 5,000 concurrent-user target, TLS configuration, and WCAG 2.1 AA conformance require dedicated deployed-environment evidence. Do not mark them passed based only on CI.
+- Playwright + axe provides an automated landing-page accessibility smoke test; it is not a complete WCAG audit. Complete `ACCESSIBILITY_CHECKLIST.md` manually.
+- `tests/load/portal-load.js` provides a k6 load-test harness. Run it only on approved staging, starting with 10 VUs; do not attempt 5,000 VUs until capacity and monitoring are approved.
 - The Test Plan names Selenium, Jest/Supertest, JMeter, axe DevTools, testssl.sh and OWASP ZAP. Their full test suites/configurations are not present in the supplied source snapshot.
