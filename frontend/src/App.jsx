@@ -106,7 +106,7 @@ function App() {
         setApplications(mine);
         setNotifications(alerts);
         setStudentSkills((profile.skills || []).join(", "));
-        try { setStudentDashboard(await request("/dashboard/student")); } catch { setStudentDashboard(null); }
+        try { setStudentDashboard(await request("/dashboard/student")); } catch (error) { setStudentDashboard(null); setNotice(error.message); }
       } else if (user.role === "admin") {
         const [recruiterApplications, recruiters] = await Promise.all([
           request("/applications/recruiter"),
@@ -384,11 +384,11 @@ function App() {
           </div>
           <p>{studentDashboard?.tests?.length || 0} completed aptitude tests</p>
           {studentDashboard?.tests?.map((item, index) => <p key={`${item._id}-${index}`}>{item.result?.topic || item.topic}: {item.result?.score ?? 0}/{item.result?.totalQuestions ?? 0} ({item.result?.percentage ?? 0}%) · {item.timeTakenSeconds ?? 0}s</p>)}
-          <h3>Recommended internships</h3>
+          <h3>Recommended internships</h3><p>Matched to your saved skills, with relevant aptitude results used to rank equally matched listings.</p>
           {studentDashboard?.recommendations?.length ? studentDashboard.recommendations.map(job => <p key={job._id}><b>{job.title}</b> — {job.company} · {(job.skills || []).join(", ")}</p>) : <p>Add saved skills to receive matching internship recommendations.</p>}
-          {studentDashboard?.skillGaps?.length > 0 && <p>Skills without a current internship match: {studentDashboard.skillGaps.join(", ")}</p>}
+          {studentDashboard?.skillGaps?.length > 0 && <p>Skills to develop for recommended internships: {studentDashboard.skillGaps.join(", ")}</p>}
         </section>
-        <div id="aptitude"><AptitudeTests /></div>
+        <div id="aptitude"><AptitudeTests onCompleted={loadDashboard} /></div>
       </>}
       {user?.role === "admin" && <div id="admin-dashboard"><AdminDashboard token={token} /></div>}
       {user?.role === "student" && <section id="my-applications" className="applications-section"><div className="section-heading"><div><h2>My Applications</h2><p>Your latest saved application statuses.</p></div><span className="result-count">{applications.length} submitted</span></div>
