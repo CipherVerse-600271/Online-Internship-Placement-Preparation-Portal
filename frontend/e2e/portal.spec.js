@@ -24,7 +24,7 @@ test("a student can register and sign in through the browser", async ({ page }) 
   const registration = page.waitForResponse(response =>
     response.url().includes("/auth/register/student") && response.request().method() === "POST"
   );
-  await page.getByRole("button", { name: "Register" }).click();
+  await page.locator("form").getByRole("button", { name: "Register", exact: true }).click();
   expect((await registration).ok()).toBeTruthy();
 
   await expect(page.getByRole("status")).toContainText(/student|registered|created/i);
