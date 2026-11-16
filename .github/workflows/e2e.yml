@@ -43,7 +43,7 @@ jobs:
 
       - name: Start backend
         run: |
-          nohup env NODE_ENV=test EMAIL_MODE=mock PORT=5000 JWT_SECRET=portal-e2e-secret-at-least-thirty-two-characters MONGODB_URI=mongodb://127.0.0.1:27017/portal_e2e npm run dev --prefix backend > /tmp/portal-backend.log 2>&1 &
+          nohup env NODE_ENV=test EMAIL_MODE=mock PORT=5000 JWT_SECRET=portal-e2e-secret-at-least-thirty-two-characters MONGODB_URI=mongodb://127.0.0.1:27017/internship_portal_sprint2_test npm run dev --prefix backend > /tmp/portal-backend.log 2>&1 &
           for attempt in $(seq 1 40); do
             if curl --silent --fail http://127.0.0.1:5000/api/health; then
               echo "Backend is ready"
