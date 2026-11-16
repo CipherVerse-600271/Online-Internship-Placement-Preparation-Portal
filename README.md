@@ -122,15 +122,13 @@ MONGODB_URI=mongodb://127.0.0.1:27017/internship_portal_sprint2_test
 JWT_SECRET=replace_with_at_least_32_random_characters
 JWT_EXPIRES_IN=1h
 EMAIL_MODE=gmail
-SMTP_HOST=sandbox.smtp.mailtrap.io
-SMTP_PORT=2525
-EMAIL_USER=your_mailtrap_sandbox_username
-EMAIL_APP_PASSWORD=your_mailtrap_sandbox_password
-EMAIL_FROM=demo@internship-portal.test
+EMAIL_USER=your_existing_sender_gmail_address
+EMAIL_APP_PASSWORD=your_existing_sender_app_password
+EMAIL_FROM=your_existing_sender_gmail_address
 API_BASE_URL=http://localhost:5000
 ```
 
-For a local review demo, create a free Mailtrap Email Sandbox and copy its SMTP credentials into the placeholders above. The sandbox captures verification and password-reset emails for inspection; messages are not delivered to recipient inboxes. The `EMAIL_MODE=gmail` setting allows the configured SMTP host to be used. If you set `EMAIL_MODE=mock`, messages are not sent to Mailtrap.
+Use the sender Gmail account and SMTP app password that worked in your earlier review. These sender credentials are configured once; each student enters their own recipient email in the registration form. Do not set `EMAIL_MODE=mock` when you need real delivery. Leave `SMTP_HOST` unset to use Gmail's built-in transport.
 
 **Security note:** Never commit your actual `.env` file, database credentials, email passwords, or JWT secrets to GitHub.
 
