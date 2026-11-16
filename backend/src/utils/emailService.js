@@ -35,8 +35,20 @@ const getEmailMode = () => {
 
 const createTransporter = (user, pass) => {
   if (!user || !pass) throw new Error("Email service is not configured");
+  if (process.env.SMTP_HOST) {
+    const port = Number(process.env.SMTP_PORT || 587);
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+      secure: port === 465,
+      requireTLS: port !== 465,
+      auth: { user, pass }
+    });
+  }
   return nodemailer.createTransport({ service: "gmail", auth: { user, pass } });
 };
+
+const fromAddress = primaryUser => process.env.EMAIL_FROM || primaryUser;
 
 const sendWithFallback = async mailOptions => {
   if (getEmailMode() === "mock") return mockTransporter.sendMail(mailOptions);
@@ -47,7 +59,7 @@ const sendWithFallback = async mailOptions => {
     if (!process.env.EMAIL_USER_2 || !process.env.EMAIL_APP_PASSWORD_2) throw primaryError;
     const secondaryOptions = {
       ...mailOptions,
-      from: `"Internship Placement Portal" <${process.env.EMAIL_USER_2}>`
+      from: `"Internship Placement Portal" <${fromAddress(process.env.EMAIL_USER_2)}>`
     };
     return createTransporter(process.env.EMAIL_USER_2, process.env.EMAIL_APP_PASSWORD_2).sendMail(secondaryOptions);
   }
@@ -57,7 +69,7 @@ const sendVerificationEmail = async (email, token) => {
   const baseUrl = (process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 5000}`).replace(/\/$/, "");
   const verificationLink = `${baseUrl}/api/auth/verify-email/${encodeURIComponent(token)}`;
   return sendWithFallback({
-    from: `"Internship Placement Portal" <${process.env.EMAIL_USER}>`,
+    from: `"Internship Placement Portal" <${fromAddress(process.env.EMAIL_USER)}>`,
     to: email,
     subject: "Verify Your Internship Portal Account",
     html: `
@@ -66,14 +78,14 @@ const sendVerificationEmail = async (email, token) => {
       <p>Click the link below to verify your email address:</p>
       <a href="${verificationLink}">Verify My Email</a>
       <p>This verification link expires in 10 minutes.</p>
-      <p>If you did not create this account, please ignore this email.</p>
+      <p>If you did not create this account, please ignore this message.</p>
     `
   });
 };
 
 const sendPasswordResetEmail = async (email, otp) => {
   return sendWithFallback({
-    from: `"Internship Placement Portal" <${process.env.EMAIL_USER}>`,
+    from: `"Internship Placement Portal" <${fromAddress(process.env.EMAIL_USER)}>`,
     to: email,
     subject: "Your password reset code",
     text: `Your password reset code is ${otp}. It expires in 10 minutes. If you did not request this, ignore this message.`,
@@ -87,7 +99,7 @@ const sendApplicationStatusEmail = async (email, studentName, internshipTitle, s
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   })[character]);
   return sendWithFallback({
-    from: `"Internship Placement Portal" <${process.env.EMAIL_USER}>`,
+    from: `"Internship Placement Portal" <${fromAddress(process.env.EMAIL_USER)}>`,
     to: email,
     subject: `Application update: ${status}`,
     text: `Hello ${studentName || "Student"}, your application for ${internshipTitle} has been updated to: ${status}.`,
