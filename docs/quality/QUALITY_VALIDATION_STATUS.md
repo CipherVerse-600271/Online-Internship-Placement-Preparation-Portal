@@ -8,8 +8,8 @@
 
 | Area | Evidence in repository | Status |
 |---|---|---|
-| Backend unit tests | `backend/test/*.test.js`, Node test runner | Implemented; CI execution must pass |
-| Statement, branch, function and line coverage | `backend/package.json` coverage script using c8 | Implemented; reports uploaded by CI |
+| Backend unit tests | `backend/test/*.test.js`, Node test runner | Verified on main merge commit `b4abfdf`: 10 passed, 0 failed |
+| Statement, branch, function and line coverage | `backend/package.json` coverage script using c8 | Verified on main merge commit `b4abfdf`: 34.55% statements/lines, 57.48% branches, 46.15% functions; report uploaded by CI |
 | Backend syntax and project structure | `Portal CI` workflow | Implemented |
 | Frontend build and lint | `Portal CI` workflow | Implemented |
 | Browser system / E2E tests | `frontend/e2e/portal.spec.js`, Playwright workflow | Implemented for public portal/search shell and student registration/sign-in |
@@ -49,3 +49,8 @@ Replace the example host with the approved staging URL. Save the complete k6 out
 ## Important interpretation
 
 Passing CI proves that the configured automated checks passed for the tested commit. It does not prove 5,000-user capacity, 99.5% monthly uptime, production TLS configuration, or full WCAG conformance. Keep GitHub issues #10 and #20 open until their deployment-level acceptance evidence is reviewed.
+
+
+## Verified baseline from CI (16 November 2026)
+
+On main merge commit `b4abfdf4b291061beb9f4caa7647b5b3bdf1ce00`, the GitHub Actions backend job completed successfully: 10 tests passed, 0 failed. c8 reported 34.55% statement coverage, 57.48% branch coverage, 46.15% function coverage, and 34.55% line coverage. The HTML/LCOV/JSON coverage artifact was uploaded. These figures are a baseline, not a high-coverage claim; several routes and models remain uncovered.
