@@ -20,13 +20,13 @@ router.get("/overview", async (_req, res) => {
       User.countDocuments({ role: "recruiter", recruiterStatus: "pending" }),
       Internship.countDocuments(), Internship.countDocuments({ isActive: true }), Application.countDocuments()
     ]);
-    const hiringCompanies = await Application.aggregate([
+    const [placementCount, hiringCompanies] = await Promise.all([Application.countDocuments({ status: "Accepted" }), Application.aggregate([
       { $match: { status: "Accepted" } },
       { $lookup: { from: "internships", localField: "internship", foreignField: "_id", as: "job" } },
       { $unwind: "$job" }, { $group: { _id: "$job.company", placements: { $sum: 1 } } },
       { $sort: { placements: -1, _id: 1 } }, { $limit: 10 }
-    ]);
-    res.json({ students, recruiters, pendingRecruiters, internships, activeInternships, applications, placements: hiringCompanies });
+    ])]);
+    res.json({ students, recruiters, pendingRecruiters, internships, activeInternships, applications, placementCount, placements: hiringCompanies });
   } catch (error) {
     console.error("Admin overview error:", error);
     res.status(500).json({ message: "Unable to retrieve admin overview." });
@@ -89,7 +89,7 @@ router.post("/internships", async (req, res) => {
   try {
     const { recruiter: recruiterId, title, company, location, stipend, duration, description, eligibility, skills, deadline } = req.body;
     if (!mongoose.isValidObjectId(recruiterId)) return res.status(400).json({ message: "A valid recruiter ID is required." });
-    const recruiter = await User.findOne({ _id: recruiterId, role: "recruiter", recruiterStatus: "approved", isEmailVerified: true });
+    const recruiter = await User.findOne({ _id: recruiterId, role: "recruiter", recruiterStatus: "approved", isEmailVerified: true, isActive: true });
     if (!recruiter) return res.status(400).json({ message: "Choose an email-verified, approved recruiter." });
     if ([title, company, location, duration, description, eligibility, deadline].some(value => typeof value !== "string" || !value.trim())) {
       return res.status(400).json({ message: "Complete all required internship fields." });
