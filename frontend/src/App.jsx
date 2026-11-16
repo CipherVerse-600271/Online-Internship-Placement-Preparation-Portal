@@ -137,7 +137,7 @@ function App() {
 
   async function resendVerification() {
     setBusy(true); setNotice("");
-    try { const result = await request("/auth/resend-verification", { method: "POST", body: JSON.stringify({ email: auth.email }) }); setNotice(result.message); }
+    try { const result = await request("/auth/resend-verification", { method: "POST", body: JSON.stringify({ email: auth.email }) }); setNotice(result.message); setDevVerificationUrl(result.devVerificationUrl || ""); }
     catch (error) { setNotice(error.message); }
     finally { setBusy(false); }
   }
