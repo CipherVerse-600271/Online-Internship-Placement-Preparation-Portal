@@ -190,7 +190,7 @@
 .portal-account button { min-height:38px; border-color:#ffffff70; background:#ffffff18; }
 .container { max-width:1160px; padding-top:28px; padding-bottom:48px; }
 .section-heading { margin:2rem 0 1rem; }
-.section-heading p,.company-name,.form-note { color:#69758b; }
+.section-heading p,.company-name,.form-note { color:#626f85; }
 .result-count { padding:6px 11px; border:1px solid #dce4ef; border-radius:999px; background:#fff; color:#42526d; font-size:.88rem; }
 .filters { padding:14px; border:1px solid #e3e9f2; border-radius:16px; background:#fff; box-shadow:0 8px 24px #19395b08; }
 .filters input,.app input,.app select,.app textarea { border-color:#d7dfeb; border-radius:10px; background:#fff; color:#17233d; }
