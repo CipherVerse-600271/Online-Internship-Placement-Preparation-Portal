@@ -17,14 +17,22 @@ router.get("/student", protect, authorize("student"), async (req, res) => {
         .select("topic result status startedAt submittedAt").sort({ submittedAt: -1 }).limit(20).lean()
     ]);
     const skills = (student?.skills || []).map(value => String(value).trim()).filter(Boolean);
-    const appliedIds = applications.map(item => item.internship?._id).filter(Boolean);
-    const filter = { isActive: true, deadline: { $gte: new Date() } };
-    if (appliedIds.length) filter._id = { $nin: appliedIds };
-    if (skills.length) filter.skills = { $in: skills.map(skill => new RegExp(`^${skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")) };
-    const recommendations = await Internship.find(filter).sort({ createdAt: -1 }).limit(20)
-      .select("title company location skills stipend duration deadline").lean();
-    const answeredSkills = new Set(recommendations.flatMap(item => item.skills || []).map(s => String(s).toLowerCase()));
-    const skillGaps = skills.filter(skill => !answeredSkills.has(skill.toLowerCase()));
+    const appliedIds = await Application.distinct("internship", { student: req.user._id });
+    const normalize = value => String(value).trim().toLowerCase();
+    const profile = new Set(skills.map(normalize));
+    const topicSkills = { quantitative: ["quantitative", "mathematics", "math", "statistics"], logical: ["logical", "logic", "reasoning", "problem solving"], verbal: ["verbal", "communication", "english", "writing"] };
+    const scores = new Map();
+    for (const test of tests) if (!scores.has(test.topic)) scores.set(test.topic, Number(test.result?.percentage) || 0);
+    const candidates = skills.length ? await Internship.find({ isActive: true, deadline: { $gte: new Date() }, _id: { $nin: appliedIds } }).sort({ createdAt: -1 }).select("title company location skills stipend duration deadline").lean() : [];
+    const ranked = candidates.map(job => {
+      const required = (job.skills || []).map(normalize);
+      const matches = required.filter(skill => profile.has(skill));
+      const related = Object.entries(topicSkills).filter(([, names]) => names.some(name => matches.includes(name)));
+      const aptitudeScore = related.reduce((sum, [topic]) => sum + (scores.get(topic) || 0), 0) / Math.max(1, related.length);
+      return { ...job, matchedSkills: matches, missingSkills: required.filter(skill => !profile.has(skill)), aptitudeScore };
+    }).filter(job => job.matchedSkills.length).sort((a, b) => b.matchedSkills.length - a.matchedSkills.length || b.aptitudeScore - a.aptitudeScore);
+    const recommendations = ranked.slice(0, 20);
+    const skillGaps = [...new Set(recommendations.flatMap(job => job.missingSkills))];
     const testHistory = tests.map(test => ({ ...test, timeTakenSeconds: test.submittedAt && test.startedAt
       ? Math.max(0, Math.round((new Date(test.submittedAt) - new Date(test.startedAt)) / 1000)) : null }));
     res.json({ applications, tests: testHistory, recommendations, skillGaps, skills });

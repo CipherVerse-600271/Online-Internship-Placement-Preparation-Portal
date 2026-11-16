@@ -82,11 +82,13 @@ export default function AdminDashboard({ token }) {
     } catch (err) { setError(err.message); }
   }
 
-  async function editListing(job) {
-    const title = window.prompt("Update internship title", job.title);
-    if (title === null || !title.trim()) return;
+  const [editing, setEditing] = useState(null);
+  async function editListing(event) {
+    event.preventDefault();
     try {
-      await request(`/internships/${job._id}`, { method: "PATCH", body: JSON.stringify({ title: title.trim() }) });
+      const { _id, ...fields } = editing;
+      await request(`/internships/${_id}`, { method: "PATCH", body: JSON.stringify({ ...fields, stipend: Number(fields.stipend), skills: fields.skills.split(",").map(s => s.trim()).filter(Boolean) }) });
+      setEditing(null);
       await load();
     } catch (err) { setError(err.message); }
   }
@@ -119,7 +121,7 @@ export default function AdminDashboard({ token }) {
             <Stat label="Pending recruiter reviews" value={analytics.pendingRecruiters ?? "—"} />
             <Stat label="Active internships" value={analytics.activeInternships ?? "—"} />
             <Stat label="Applications" value={analytics.applications ?? "—"} />
-            <Stat label="Placements" value={analytics.placements?.reduce((sum, item) => sum + item.placements, 0) ?? "—"} />
+            <Stat label="Offers (accepted applications)" value={analytics.placementCount ?? "—"} />
           </div>
         )}
         {analytics?.placements?.length > 0 && (
@@ -133,7 +135,7 @@ export default function AdminDashboard({ token }) {
 
       <section className="admin-panel" aria-labelledby="recruiter-title">
         <h2 id="recruiter-title">Recruiter approval requests</h2>
-        {recruiters.length === 0 ? <p>No pending recruiters, or the User model is not integrated.</p> : recruiters.map((person) => (
+        {recruiters.length === 0 ? <p>No pending recruiters.</p> : recruiters.map((person) => (
           <div className="admin-row" key={person._id}>
               <span><strong>{person.fullName || person.email || person._id}</strong><small>{person.email} · {person.companyName || "Organization not provided"}</small>
                 {(person.companyWebsite || person.companyEmail) && <small>{person.companyEmail || ""}{person.companyEmail && person.companyWebsite ? " · " : ""}{person.companyWebsite && <a href={person.companyWebsite} target="_blank" rel="noreferrer">Organization website</a>}</small>}
@@ -155,12 +157,16 @@ export default function AdminDashboard({ token }) {
             <button type="submit">Create internship</button>
           </form>
         </details>
+        {editing && <form className="admin-listing-form" onSubmit={editListing}>
+          {[["title", "Title"], ["company", "Company"], ["location", "Location"], ["stipend", "Monthly stipend"], ["duration", "Duration"], ["description", "Description"], ["eligibility", "Eligibility"], ["skills", "Skills"], ["deadline", "Deadline"]].map(([key, label]) => <label key={key}>{label}<input required={key !== "skills"} type={key === "deadline" ? "date" : key === "stipend" ? "number" : "text"} min={key === "stipend" ? "0" : undefined} value={editing[key]} onChange={event => setEditing({ ...editing, [key]: event.target.value })} /></label>)}
+          <button type="submit">Save changes</button><button type="button" onClick={() => setEditing(null)}>Cancel</button>
+        </form>}
         {internships.map((job) => (
           <div className="admin-row" key={job._id}>
             <span><strong>{job.title}</strong><small>{job.company} · {job.location}</small></span>
             <span className="admin-actions">
               <span className={job.isActive === false ? "admin-status off" : "admin-status"}>{job.isActive === false ? "Inactive" : "Active"}</span>
-              <button type="button" className="secondary" onClick={() => editListing(job)}>Edit title</button>
+              <button type="button" className="secondary" onClick={() => setEditing({ _id: job._id, title: job.title, company: job.company, location: job.location, stipend: job.stipend, duration: job.duration, description: job.description, eligibility: job.eligibility, skills: (job.skills || []).join(", "), deadline: job.deadline.slice(0, 10) })}>Edit listing</button>
               <button type="button" className="secondary" onClick={() => setListingActive(job._id, job.isActive === false)}> {job.isActive === false ? "Activate" : "Deactivate"} </button>
             </span>
           </div>
