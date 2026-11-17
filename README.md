@@ -170,7 +170,6 @@ The project is designed to follow these security requirements:
 - Require recruiter verification before allowing internship listings to be published.
 - Implement time-limited, single-use password-reset OTPs.
 - Lock accounts after five consecutive failed login attempts for 15 minutes.
-- Use HTTPS with TLS 1.2 or higher in deployed environments.
 - Protect sensitive configuration using environment variables.
 - Log relevant authentication and administrative actions.
 - Validate incoming requests and apply appropriate rate limits.
@@ -218,7 +217,7 @@ Testing should cover:
 - Application submission and status updates.
 - Aptitude test timing and grading.
 - Email notifications.
-- Performance, availability, scalability, and accessibility.
+- Accessibility and responsive layouts.
 - API input validation and security controls.
 
 Automated checks should be configured through GitHub Actions as the project develops. Tests and quality checks must pass before changes are approved for merging.
