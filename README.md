@@ -118,16 +118,17 @@ Configure the required environment variables, including:
 ```env
 PORT=5000
 NODE_ENV=development
-EMAIL_MODE=mock
-MONGODB_URI=your_local_test_database_connection_string
-JWT_SECRET=your_strong_secret_key
-JWT_EXPIRES_IN=1d
-EMAIL_USER=your_smtp_account
-EMAIL_APP_PASSWORD=your_smtp_app_password
-API_BASE_URL=https://your-api-host
+MONGODB_URI=mongodb://127.0.0.1:27017/internship_portal_sprint2_test
+JWT_SECRET=replace_with_at_least_32_random_characters
+JWT_EXPIRES_IN=1h
+EMAIL_MODE=gmail
+EMAIL_USER=your_existing_sender_gmail_address
+EMAIL_APP_PASSWORD=your_existing_sender_app_password
+EMAIL_FROM=your_existing_sender_gmail_address
+API_BASE_URL=http://localhost:5000
 ```
 
-Use the variable names and configuration expected by the current backend implementation. Configure any additional required variables for email integration as that feature is implemented.
+Use the sender Gmail account and SMTP app password that worked in your earlier review. These sender credentials are configured once; each student enters their own recipient email in the registration form. Do not set `EMAIL_MODE=mock` when you need real delivery. Leave `SMTP_HOST` unset to use Gmail's built-in transport.
 
 **Security note:** Never commit your actual `.env` file, database credentials, email passwords, or JWT secrets to GitHub.
 

@@ -27,6 +27,13 @@ const loginLimiter = rateLimit({
 });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false });
 const passwordRules = (field = "password") => body(field).isString().isLength({ min: 8 }).isByteLength({ min: 8, max: 72 }).matches(/[a-z]/).matches(/[A-Z]/).matches(/[0-9]/).withMessage("Password must be 8-72 UTF-8 bytes and include upper, lower, and numeric characters");
+const emailErrorDetails = error => ({
+  name: error?.name || typeof error,
+  message: error?.message || String(error),
+  code: error?.code || undefined,
+  responseCode: error?.responseCode || undefined,
+  command: error?.command || undefined
+});
 const errorsFor = (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) { res.status(400).json({ errors: errors.array() }); return true; }
@@ -57,18 +64,27 @@ router.post(
         });
       }
 
+      const verificationToken = crypto.randomBytes(32).toString("hex");
       const user = await User.create({
         fullName,
         email,
         srn,
         password,
         role: "student",
-        isEmailVerified: true,
+        isEmailVerified: false,
+        emailVerificationToken: crypto.createHash("sha256").update(verificationToken).digest("hex"),
+        emailVerificationExpiry: new Date(Date.now() + 10 * 60 * 1000)
       });
 
+      try {
+        await sendVerificationEmail(user.email, verificationToken);
+      } catch (emailError) {
+        console.error("Student verification email failed:", emailErrorDetails(emailError));
+        return res.status(503).json({ message: "Account created, but verification email could not be sent. Use the resend option to try again." });
+      }
 
       return res.status(201).json({
-        message: "Student registered successfully. You can now log in.",
+        message: "Student registered successfully. Verification email sent.",
         user: {
           id: user._id,
           fullName: user.fullName,
@@ -124,7 +140,7 @@ router.post(
       try {
         await sendVerificationEmail(user.email, verificationToken);
       } catch (emailError) {
-        console.error("Recruiter verification email failed:", emailError.message);
+        console.error("Recruiter verification email failed:", emailErrorDetails(emailError));
         return res.status(503).json({ message: "Account created, but verification email could not be sent. Use the resend option to try again." });
       }
 
@@ -152,14 +168,14 @@ router.post(
 // Resend without revealing whether the email belongs to an eligible account.
 router.post("/resend-verification", resendVerificationLimiter, async (req, res) => {
   const genericResponse = {
-    message: "If an eligible recruiter account exists, a verification email will be sent shortly."
+    message: "If an unverified account exists, a verification email will be sent shortly."
   };
 
   try {
     const email = String(req.body?.email || "").trim().toLowerCase();
     if (!email) return res.status(200).json(genericResponse);
 
-    const user = await User.findOne({ email, role: "recruiter" });
+    const user = await User.findOne({ email, role: { $in: ["student", "recruiter"] } });
     if (user && !user.isEmailVerified && user.recruiterStatus !== "rejected") {
       const verificationToken = crypto.randomBytes(32).toString("hex");
       user.emailVerificationToken = crypto
@@ -243,7 +259,7 @@ router.post(
         });
       }
 
-      if (user.role !== "student" && !user.isEmailVerified) {
+      if (!user.isEmailVerified) {
         await recordAudit("auth.login_unverified", { subject: user._id, outcome: "failure" });
         return res.status(403).json({
           message: "Please verify your email before logging in"
@@ -349,7 +365,7 @@ router.post("/forgot-password", authLimiter, [body("email").isEmail().normalizeE
     try { await sendPasswordResetEmail(email, otp); }
     catch (emailError) {
       user.resetOTP = null; user.resetOTPExpiry = null; user.resetOTPAttempts = 0; await user.save();
-      console.error("Password reset email failed:", emailError.message);
+      console.error("Password reset email failed:", emailErrorDetails(emailError));
       return res.status(200).json({ message: "If the account exists, a reset code has been sent." });
     }
     return res.status(200).json({ message: "If the account exists, a reset code has been sent." });

@@ -138,14 +138,10 @@ function App() {
         : { fullName: auth.fullName, email: auth.email, password: auth.password, companyName: auth.companyName, companyWebsite: auth.companyWebsite, companyEmail: auth.companyEmail };
       const data = await request(endpoint, { method: "POST", body: JSON.stringify(payload) });
       if (authMode === "register") {
-        setNotice(data.message + (authRole === "recruiter" ? " Verify your email and await administrator approval before signing in." : " Students can sign in without email verification."));
-        if (authRole === "recruiter") {
-          setPendingVerificationEmail(auth.email.trim());
-          setAuthMode("login");
-        } else {
-          setAuthMode("login");
-          setAuth({ fullName: "", email: auth.email, srn: "", password: "" });
-        }
+        setNotice(data.message + (authRole === "recruiter" ? " Verify your email and await administrator approval before signing in." : " Check your email inbox for the verification link before signing in."));
+        setPendingVerificationEmail(auth.email.trim());
+        setAuthMode("login");
+        setAuth({ fullName: "", email: auth.email, srn: "", password: "" });
       } else {
         localStorage.setItem("portalToken", data.token);
         localStorage.setItem("portalUser", JSON.stringify(data.user));
@@ -154,7 +150,6 @@ function App() {
     } catch (error) {
       if (
         authMode === "register" &&
-        authRole === "recruiter" &&
         error.message.toLowerCase().includes("account created")
       ) {
         setPendingVerificationEmail(auth.email.trim());
@@ -169,7 +164,7 @@ function App() {
     event.preventDefault(); setBusy(true); setNotice("");
     try {
       const result = await request("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email: resetForm.email }) });
-      setNotice(result.message + " Check your inbox for the six-digit code.");
+      setNotice(result.message + " Check your email inbox for the six-digit code.");
       setAuthMode("reset");
     } catch (error) { setNotice(error.message); }
     finally { setBusy(false); }
@@ -333,8 +328,8 @@ function App() {
           {authMode === "register" && <p className="form-note">Use at least 8 characters with uppercase, lowercase, and a number.</p>}
           <button className="apply-button" disabled={busy}>{busy ? "Please wait..." : authMode === "login" ? "Sign in" : "Register"}</button>
         </form>}
-        {authMode === "login" && <div className="auth-links"><button type="button" className="text-button" onClick={() => {setResetForm({...resetForm,email:auth.email});setAuthMode("forgot");}}>Forgot password?</button>{pendingVerificationEmail && <button type="button" className="text-button" disabled={busy} onClick={resendVerification}>Resend recruiter verification email</button>}</div>}
-        {authMode === "register" && <p className="form-note">Please use any valid email address. Students can register with Gmail, Yahoo, Outlook, PESU, or any other valid provider. Student email verification is not required. Recruiters must verify their email and receive administrator approval before login.</p>}
+        {authMode === "login" && <div className="auth-links"><button type="button" className="text-button" onClick={() => {setResetForm({...resetForm,email:auth.email});setAuthMode("forgot");}}>Forgot password?</button>{pendingVerificationEmail && <button type="button" className="text-button" disabled={busy} onClick={resendVerification}>Resend verification email</button>}</div>}
+        {authMode === "register" && <p className="form-note">Use any valid email address. All accounts must verify their email before sign in. Recruiters also need administrator approval.</p>}
         {(authMode === "login" || authMode === "register") && <button className="details-button auth-toggle" onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}>{authMode === "login" ? "New here? Create an account" : "Already registered? Sign in"}</button>}
         {(authMode === "forgot" || authMode === "reset") && <button className="text-button" onClick={() => setAuthMode("login")}>Back to sign in</button>}
       </section>}
